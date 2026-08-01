@@ -1,3 +1,10 @@
+# 1.0.1
+
+- OSI-approved MIT License and standard SPDX license recognition.
+- Comprehensive 100% Dartdoc API documentation for 160/160 Pana pub points.
+- Package example app implementation in `example/`.
+- Updated dependency ranges for latest Flutter and Dart SDKs.
+
 # 1.0.0+1
 
 - Initial release of Scanner Pro cross-platform Flutter application.
