@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/models/scan_result.dart';
 import '../../core/models/scanner_mode.dart';
+import '../../core/models/scanner_theme.dart';
 import '../../services/universal_scan_engine.dart';
 import 'result_bottom_sheet.dart';
 import 'scanner_overlay_painter.dart';
@@ -17,6 +18,66 @@ class UniversalScannerView extends StatefulWidget {
   /// Initial mode when the scanner opens.
   final ScanMode initialMode;
 
+  /// Optional explicit list of enabled scanning modes.
+  final List<ScanMode>? enabledModes;
+
+  /// Whether QR Code scanning mode is enabled.
+  final bool enableQr;
+
+  /// Whether 1D Barcode scanning mode is enabled.
+  final bool enableBarcode;
+
+  /// Whether PDF417 barcode scanning mode is enabled.
+  final bool enablePdf417;
+
+  /// Whether Passport MRZ scanning mode is enabled.
+  final bool enablePassport;
+
+  /// Whether Indian Aadhaar Card scanning mode is enabled.
+  final bool enableAadhaar;
+
+  /// Whether Income Tax PAN Card scanning mode is enabled.
+  final bool enablePan;
+
+  /// Whether Driving License scanning mode is enabled.
+  final bool enableDrivingLicense;
+
+  /// Whether Vehicle VIN scanning mode is enabled.
+  final bool enableVin;
+
+  /// Whether Text OCR scanning mode is enabled.
+  final bool enableOcr;
+
+  /// Whether Face Detection mode is enabled.
+  final bool enableFace;
+
+  /// Optional theme configuration for customizing UI design and colors.
+  final ScannerUiTheme? theme;
+
+  /// Primary accent color for viewfinder reticle, selected mode, and highlight lines.
+  final Color? primaryAccentColor;
+
+  /// Scanner viewport container background color.
+  final Color? backgroundColor;
+
+  /// Mode selection bottom bar background color.
+  final Color? modeSelectorBackgroundColor;
+
+  /// Background dimming color outside camera viewfinder cutout.
+  final Color? overlayMaskColor;
+
+  /// Color of animated scanning laser beam.
+  final Color? laserBeamColor;
+
+  /// Whether to display top active mode badge chip.
+  final bool? showModeBadge;
+
+  /// Whether to display top floating guidance text box.
+  final bool? showGuideBox;
+
+  /// Whether to display animated scanning laser beam.
+  final bool? showLaserBeam;
+
   /// Optional callback invoked when a valid [ScanResult] is detected.
   final Function(ScanResult result)? onResultDetected;
 
@@ -24,8 +85,78 @@ class UniversalScannerView extends StatefulWidget {
   const UniversalScannerView({
     super.key,
     this.initialMode = ScanMode.qr,
+    this.enabledModes,
+    this.enableQr = true,
+    this.enableBarcode = true,
+    this.enablePdf417 = true,
+    this.enablePassport = true,
+    this.enableAadhaar = true,
+    this.enablePan = true,
+    this.enableDrivingLicense = true,
+    this.enableVin = true,
+    this.enableOcr = true,
+    this.enableFace = true,
+    this.theme,
+    this.primaryAccentColor,
+    this.backgroundColor,
+    this.modeSelectorBackgroundColor,
+    this.overlayMaskColor,
+    this.laserBeamColor,
+    this.showModeBadge,
+    this.showGuideBox,
+    this.showLaserBeam,
     this.onResultDetected,
   });
+
+  /// Resolves the effective [ScannerUiTheme] merging [theme] and individual color overrides.
+  ScannerUiTheme get resolvedTheme {
+    final base = theme ?? ScannerUiTheme.dark;
+    return ScannerUiTheme(
+      overlayMaskColor: overlayMaskColor ?? base.overlayMaskColor,
+      accentColor: primaryAccentColor ?? base.accentColor,
+      reticleCornerColor: base.reticleCornerColor,
+      reticleBorderColor: base.reticleBorderColor,
+      laserBeamColor: laserBeamColor ?? base.laserBeamColor,
+      backgroundColor: backgroundColor ?? base.backgroundColor,
+      modeSelectorBackgroundColor:
+          modeSelectorBackgroundColor ?? base.modeSelectorBackgroundColor,
+      modeTabSelectedColor: base.modeTabSelectedColor,
+      modeTabUnselectedColor: base.modeTabUnselectedColor,
+      modeTabSelectedTextColor: base.modeTabSelectedTextColor,
+      modeTabUnselectedTextColor: base.modeTabUnselectedTextColor,
+      guideBoxBackgroundColor: base.guideBoxBackgroundColor,
+      guideTextColor: base.guideTextColor,
+      badgeBackgroundColor: base.badgeBackgroundColor,
+      badgeTextColor: base.badgeTextColor,
+      showModeBadge: showModeBadge ?? base.showModeBadge,
+      showGuideBox: showGuideBox ?? base.showGuideBox,
+      showLaserBeam: showLaserBeam ?? base.showLaserBeam,
+      reticleCornerLength: base.reticleCornerLength,
+      reticleCornerWidth: base.reticleCornerWidth,
+      reticleBorderWidth: base.reticleBorderWidth,
+      reticleCornerRadius: base.reticleCornerRadius,
+    );
+  }
+
+  /// Resolves the list of active scanning modes enabled for this widget.
+  List<ScanMode> get activeEnabledModes {
+    if (enabledModes != null && enabledModes!.isNotEmpty) {
+      return List.unmodifiable(enabledModes!);
+    }
+    final modes = <ScanMode>[];
+    if (enableQr) modes.add(ScanMode.qr);
+    if (enableBarcode) modes.add(ScanMode.barcode);
+    if (enablePdf417) modes.add(ScanMode.pdf417);
+    if (enablePassport) modes.add(ScanMode.passport);
+    if (enableAadhaar) modes.add(ScanMode.aadhaar);
+    if (enablePan) modes.add(ScanMode.pan);
+    if (enableDrivingLicense) modes.add(ScanMode.drivingLicense);
+    if (enableVin) modes.add(ScanMode.vin);
+    if (enableOcr) modes.add(ScanMode.ocr);
+    if (enableFace) modes.add(ScanMode.face);
+
+    return modes.isEmpty ? ScanMode.values : List.unmodifiable(modes);
+  }
 
   @override
   State<UniversalScannerView> createState() => _UniversalScannerViewState();
@@ -57,7 +188,12 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
   @override
   void initState() {
     super.initState();
-    _selectedMode = widget.initialMode;
+    final available = widget.activeEnabledModes;
+    if (available.contains(widget.initialMode)) {
+      _selectedMode = widget.initialMode;
+    } else {
+      _selectedMode = available.first;
+    }
     _laserAnimController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -311,129 +447,150 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildModeSelectorBar(),
-        Expanded(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (_isCameraInitialized &&
-                  _cameraController != null &&
-                  _cameraController!.value.isInitialized)
-                CameraPreview(_cameraController!)
-              else
-                _buildSimulatorViewfinder(),
+    final uiTheme = widget.resolvedTheme;
+    return Container(
+      color: uiTheme.backgroundColor,
+      child: Column(
+        children: [
+          _buildModeSelectorBar(),
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_isCameraInitialized &&
+                    _cameraController != null &&
+                    _cameraController!.value.isInitialized)
+                  CameraPreview(_cameraController!)
+                else
+                  _buildSimulatorViewfinder(),
 
-              AnimatedBuilder(
-                animation: _laserAnimController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: ScannerOverlayPainter(
-                      scanMode: _selectedMode,
-                      animationValue: _laserAnimController.value,
-                      accentColor: _getCategoryColor(_selectedMode.category),
-                    ),
-                  );
-                },
-              ),
-
-              Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (_isCameraInitialized)
-                      _buildIconButton(
-                        icon: _isFlashOn
-                            ? Icons.flash_on_rounded
-                            : Icons.flash_off_rounded,
-                        onPressed: _toggleFlash,
-                        active: _isFlashOn,
-                      )
-                    else
-                      const SizedBox(width: 44),
-                    _buildModeBadge(),
-                    Row(
-                      children: [
-                        _buildIconButton(
-                          icon: Icons.photo_library_rounded,
-                          onPressed: _pickImageFromGallery,
-                        ),
-                        if (_availableCameras.length > 1) ...[
-                          const SizedBox(width: 8),
-                          _buildIconButton(
-                            icon: Icons.cameraswitch_rounded,
-                            onPressed: _switchCamera,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              Positioned(
-                bottom: 24,
-                left: 16,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: _getCategoryColor(_selectedMode.category),
-                        size: 18,
+                AnimatedBuilder(
+                  animation: _laserAnimController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: ScannerOverlayPainter(
+                        scanMode: _selectedMode,
+                        animationValue: _laserAnimController.value,
+                        accentColor: _getCategoryColor(_selectedMode.category),
+                        theme: uiTheme,
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          _selectedMode.guideText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
+                    );
+                  },
+                ),
+
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_isCameraInitialized)
+                        _buildIconButton(
+                          icon: _isFlashOn
+                              ? Icons.flash_on_rounded
+                              : Icons.flash_off_rounded,
+                          onPressed: _toggleFlash,
+                          active: _isFlashOn,
+                        )
+                      else
+                        const SizedBox(width: 44),
+                      if (uiTheme.showModeBadge)
+                        _buildModeBadge()
+                      else
+                        const SizedBox.shrink(),
+                      Row(
+                        children: [
+                          _buildIconButton(
+                            icon: Icons.photo_library_rounded,
+                            onPressed: _pickImageFromGallery,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
+                          if (_availableCameras.length > 1) ...[
+                            const SizedBox(width: 8),
+                            _buildIconButton(
+                              icon: Icons.cameraswitch_rounded,
+                              onPressed: _switchCamera,
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+
+                if (uiTheme.showGuideBox)
+                  Positioned(
+                    bottom: 24,
+                    left: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: uiTheme.guideBoxBackgroundColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: _getCategoryColor(_selectedMode.category),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _selectedMode.guideText,
+                              style: TextStyle(
+                                color: uiTheme.guideTextColor,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildModeSelectorBar() {
+    final availableModes = widget.activeEnabledModes;
+    if (availableModes.length <= 1) {
+      return const SizedBox.shrink();
+    }
+    final uiTheme = widget.resolvedTheme;
     return Container(
       height: 50,
-      color: const Color(0xFF0B0E14),
+      color: uiTheme.modeSelectorBackgroundColor,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-        itemCount: ScanMode.values.length,
+        itemCount: availableModes.length,
         itemBuilder: (context, index) {
-          final mode = ScanMode.values[index];
+          final mode = availableModes[index];
           final isSelected = mode == _selectedMode;
           final accentColor = _getCategoryColor(mode.category);
+          final tabBgColor = isSelected
+              ? (uiTheme.modeTabSelectedColor ?? accentColor)
+              : uiTheme.modeTabUnselectedColor;
+          final tabTextColor = isSelected
+              ? uiTheme.modeTabSelectedTextColor
+              : uiTheme.modeTabUnselectedTextColor;
+
           return Padding(
             padding: const EdgeInsets.only(right: 6),
             child: GestureDetector(
@@ -445,9 +602,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? accentColor
-                      : Colors.white.withValues(alpha: 0.05),
+                  color: tabBgColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
@@ -462,13 +617,13 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                     Icon(
                       mode.icon,
                       size: 15,
-                      color: isSelected ? Colors.black : accentColor,
+                      color: isSelected ? tabTextColor : accentColor,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       mode.title,
                       style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white70,
+                        color: tabTextColor,
                         fontWeight: isSelected
                             ? FontWeight.bold
                             : FontWeight.w500,
@@ -486,8 +641,9 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
   }
 
   Widget _buildSimulatorViewfinder() {
+    final uiTheme = widget.resolvedTheme;
     return Container(
-      color: const Color(0xFF090D12),
+      color: uiTheme.backgroundColor,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -527,21 +683,20 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
   }
 
   Widget _buildModeBadge() {
+    final uiTheme = widget.resolvedTheme;
+    final badgeColor =
+        uiTheme.badgeTextColor ?? _getCategoryColor(_selectedMode.category);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.65),
+        color: uiTheme.badgeBackgroundColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _getCategoryColor(
-            _selectedMode.category,
-          ).withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
       ),
       child: Text(
         _selectedMode.title.toUpperCase(),
         style: TextStyle(
-          color: _getCategoryColor(_selectedMode.category),
+          color: badgeColor,
           fontSize: 11.5,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -555,11 +710,10 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
     required VoidCallback onPressed,
     bool active = false,
   }) {
+    final accent = _getCategoryColor(_selectedMode.category);
     return Container(
       decoration: BoxDecoration(
-        color: active
-            ? _getCategoryColor(_selectedMode.category)
-            : Colors.black.withValues(alpha: 0.65),
+        color: active ? accent : Colors.black.withValues(alpha: 0.65),
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
@@ -571,6 +725,9 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
   }
 
   Color _getCategoryColor(String category) {
+    if (widget.resolvedTheme.accentColor != null) {
+      return widget.resolvedTheme.accentColor!;
+    }
     switch (category) {
       case 'Barcodes':
         return const Color(0xFF00E5FF);

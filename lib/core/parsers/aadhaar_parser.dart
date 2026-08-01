@@ -75,13 +75,17 @@ class AadhaarParser {
       for (final line in lines) {
         if (RegExp(r'DOB|Date of Birth', caseSensitive: false).hasMatch(line)) {
           final dobMatch = RegExp(r'\d{2}/\d{2}/\d{4}').firstMatch(line);
-          if (dobMatch != null) fields['Date of Birth'] = dobMatch.group(0)!;
+          if (dobMatch != null) {
+            fields['Date of Birth'] = dobMatch.group(0)!;
+          }
         } else if (RegExp(
           r'Year of Birth|YOB',
           caseSensitive: false,
         ).hasMatch(line)) {
           final yobMatch = RegExp(r'\d{4}').firstMatch(line);
-          if (yobMatch != null) fields['Year of Birth'] = yobMatch.group(0)!;
+          if (yobMatch != null) {
+            fields['Year of Birth'] = yobMatch.group(0)!;
+          }
         } else if (RegExp(
           r'\bMale\b|\bFemale\b|\bTRANSGENDER\b',
           caseSensitive: false,

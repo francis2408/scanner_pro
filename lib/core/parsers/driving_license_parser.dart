@@ -67,7 +67,9 @@ class DrivingLicenseParser {
     String value,
   ) {
     String cleanVal = value;
-    if (cleanVal.length > 25) cleanVal = cleanVal.substring(0, 25);
+    if (cleanVal.length > 25) {
+      cleanVal = cleanVal.substring(0, 25);
+    }
 
     switch (code) {
       case 'DAQ':
@@ -135,9 +137,12 @@ class DrivingLicenseParser {
         .map((m) => m.group(0)!)
         .toList();
 
-    if (dateMatches.isNotEmpty)
+    if (dateMatches.isNotEmpty) {
       fields['Date of Birth / Issue'] = dateMatches.first;
-    if (dateMatches.length > 1) fields['Expiration Date'] = dateMatches.last;
+    }
+    if (dateMatches.length > 1) {
+      fields['Expiration Date'] = dateMatches.last;
+    }
 
     final lines = rawText
         .split(RegExp(r'[\r\n]+'))

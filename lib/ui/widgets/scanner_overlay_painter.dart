@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/scanner_mode.dart';
+import '../../core/models/scanner_theme.dart';
 
 /// Custom painter for camera viewfinder cutout, reticle corners, and animated laser beam.
 class ScannerOverlayPainter extends CustomPainter {
@@ -12,17 +13,23 @@ class ScannerOverlayPainter extends CustomPainter {
   /// Accent highlight color.
   final Color accentColor;
 
+  /// Optional custom UI design theme configuration.
+  final ScannerUiTheme? theme;
+
   /// Constructs a new [ScannerOverlayPainter].
   ScannerOverlayPainter({
     required this.scanMode,
     required this.animationValue,
     this.accentColor = const Color(0xFF00E5FF),
+    this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final effectiveOverlayColor =
+        theme?.overlayMaskColor ?? Colors.black.withValues(alpha: 0.65);
     final backgroundPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.65)
+      ..color = effectiveOverlayColor
       ..style = PaintingStyle.fill;
 
     final width = size.width;
@@ -43,12 +50,13 @@ class ScannerOverlayPainter extends CustomPainter {
 
     final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, width, height));
 
+    final cornerRadius = theme?.reticleCornerRadius ?? 16.0;
     final cutoutPath = Path();
     if (scanMode == ScanMode.face) {
       cutoutPath.addOval(scanRect);
     } else {
       cutoutPath.addRRect(
-        RRect.fromRectAndRadius(scanRect, const Radius.circular(16)),
+        RRect.fromRectAndRadius(scanRect, Radius.circular(cornerRadius)),
       );
     }
 
@@ -59,28 +67,33 @@ class ScannerOverlayPainter extends CustomPainter {
     );
     canvas.drawPath(path, backgroundPaint);
 
+    final effectiveBorderColor =
+        theme?.reticleBorderColor ??
+        (theme?.accentColor ?? accentColor).withValues(alpha: 0.85);
     final borderPaint = Paint()
-      ..color = accentColor.withValues(alpha: 0.85)
+      ..color = effectiveBorderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = theme?.reticleBorderWidth ?? 2.5;
 
     if (scanMode == ScanMode.face) {
       canvas.drawOval(scanRect, borderPaint);
     } else {
       canvas.drawRRect(
-        RRect.fromRectAndRadius(scanRect, const Radius.circular(16)),
+        RRect.fromRectAndRadius(scanRect, Radius.circular(cornerRadius)),
         borderPaint,
       );
     }
 
     if (scanMode != ScanMode.face) {
+      final effectiveCornerColor =
+          theme?.reticleCornerColor ?? theme?.accentColor ?? accentColor;
       final cornerPaint = Paint()
-        ..color = accentColor
+        ..color = effectiveCornerColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.5
+        ..strokeWidth = theme?.reticleCornerWidth ?? 4.5
         ..strokeCap = StrokeCap.round;
 
-      const cornerLen = 28.0;
+      final cornerLen = theme?.reticleCornerLength ?? 28.0;
 
       canvas.drawLine(
         Offset(rectLeft, rectTop + cornerLen),
@@ -127,17 +140,21 @@ class ScannerOverlayPainter extends CustomPainter {
       );
     }
 
-    final beamY = rectTop + (rectHeight * animationValue);
-    final beamPaint = Paint()
-      ..color = accentColor
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+    if (theme?.showLaserBeam ?? true) {
+      final effectiveLaserColor =
+          theme?.laserBeamColor ?? theme?.accentColor ?? accentColor;
+      final beamY = rectTop + (rectHeight * animationValue);
+      final beamPaint = Paint()
+        ..color = effectiveLaserColor
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke;
 
-    canvas.drawLine(
-      Offset(rectLeft + 8, beamY),
-      Offset(rectLeft + rectWidth - 8, beamY),
-      beamPaint,
-    );
+      canvas.drawLine(
+        Offset(rectLeft + 8, beamY),
+        Offset(rectLeft + rectWidth - 8, beamY),
+        beamPaint,
+      );
+    }
 
     if (scanMode == ScanMode.passport) {
       final mrzHeight = rectHeight * 0.35;
@@ -179,6 +196,7 @@ class ScannerOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant ScannerOverlayPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
         oldDelegate.scanMode != scanMode ||
-        oldDelegate.accentColor != accentColor;
+        oldDelegate.accentColor != accentColor ||
+        oldDelegate.theme != theme;
   }
 }

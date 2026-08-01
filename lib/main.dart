@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'core/models/scan_result.dart';
 import 'core/models/scanner_mode.dart';
@@ -37,7 +36,7 @@ class UniversalScannerApp extends StatelessWidget {
           secondary: Color(0xFFFFD600),
           surface: Color(0xFF161B22),
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        textTheme: ThemeData.dark().textTheme,
       ),
       home: const MainScannerDashboard(),
     );
@@ -57,7 +56,9 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
   void _onResultDetected(ScanResult result) {
     setState(() {
       _scanHistory.insert(0, result);
-      if (_scanHistory.length > 50) _scanHistory.removeLast();
+      if (_scanHistory.length > 50) {
+        _scanHistory.removeLast();
+      }
     });
   }
 
@@ -226,9 +227,12 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
               ),
               child: const SelectableText(
                 '''
-// 1. Single facade widget for all 10 modes:
+// 1. Single facade widget with feature-flag access control:
 UniversalScannerView(
-  initialMode: ScanMode.passport, // Passport, Aadhaar, PAN, DL, VIN, QR, etc.
+  initialMode: ScanMode.aadhaar,
+  enableAadhaar: true, // Selective access control flags
+  enablePan: true,
+  enablePassport: true,
   onResultDetected: (ScanResult result) {
     print('Scan Mode: \${result.mode.title}');
     print('Parsed Fields: \${result.fields}');

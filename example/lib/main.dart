@@ -15,7 +15,15 @@ class ScannerExampleApp extends StatelessWidget {
     return MaterialApp(
       title: 'Scanner Pro Example',
       theme: ThemeData.dark(),
-      home: const Scaffold(body: UniversalScannerView()),
+      home: const Scaffold(
+        body: UniversalScannerView(
+          enableAadhaar: true,
+          enablePan: true,
+          enablePassport: true,
+          enableDrivingLicense: true,
+          enableQr: true,
+        ),
+      ),
     );
   }
 }
