@@ -1,6 +1,7 @@
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 
+/// Indian Aadhaar Card Verhoeff D10 checksum and Secure XML/OCR parser.
 class AadhaarParser {
   static const List<List<int>> _d = [
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -26,6 +27,7 @@ class AadhaarParser {
     [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
   ];
 
+  /// Validates a 12-digit Indian Aadhaar number using the Verhoeff algorithm.
   static bool validateAadhaarVerhoeff(String number) {
     final clean = number.replaceAll(RegExp(r'\s+'), '');
     if (clean.length != 12 || !RegExp(r'^[2-9]\d{11}$').hasMatch(clean)) {
@@ -44,6 +46,7 @@ class AadhaarParser {
     return c == 0;
   }
 
+  /// Parses raw text or Secure QR XML string from an Aadhaar card.
   static ScanResult parse(String rawData) {
     if (rawData.contains('<?xml') ||
         rawData.contains('<PrintLetterBarcodeData')) {

@@ -6,7 +6,9 @@ import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/driving_license_parser.dart';
 import '../core/parsers/vin_parser.dart';
 
+/// Container class for preset sample card scan items.
 class SampleCardPresets {
+  /// Returns sample items available for a specific [ScanMode].
   static List<SampleItem> getSamplesForMode(ScanMode mode) {
     switch (mode) {
       case ScanMode.qr:
@@ -248,11 +250,18 @@ Thank you for choosing Universal Scanner!''',
   }
 }
 
+/// Represents a single sample payload item used for mode demonstration.
 class SampleItem {
+  /// User-facing label for the sample.
   final String label;
+
+  /// The raw payload text of the sample.
   final String payload;
+
+  /// The associated [ScanMode].
   final ScanMode mode;
 
+  /// Constructs a new [SampleItem].
   SampleItem({
     required this.label,
     required this.payload,

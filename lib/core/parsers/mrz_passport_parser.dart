@@ -1,6 +1,7 @@
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 
+/// ICAO Document 9303 MRZ (Machine Readable Zone) Passport and ID Card parser.
 class MrzPassportParser {
   static int _getCharWeight(String char) {
     if (char == '<') return 0;
@@ -14,6 +15,7 @@ class MrzPassportParser {
     return 0;
   }
 
+  /// Calculates the 7-3-1 weight check digit for an MRZ field string.
   static int calculateCheckDigit(String input) {
     final weights = [7, 3, 1];
     int sum = 0;
@@ -25,6 +27,7 @@ class MrzPassportParser {
     return sum % 10;
   }
 
+  /// Verifies a field against its trailing check digit character.
   static bool verifyCheckDigit(String data, String checkDigitChar) {
     if (checkDigitChar.isEmpty) return false;
     final expected = calculateCheckDigit(data);
@@ -32,6 +35,7 @@ class MrzPassportParser {
     return expected == actual;
   }
 
+  /// Formats a YYMMDD date string to ISO YYYY-MM-DD format.
   static String formatDate(String yymmdd, {bool isExpiry = false}) {
     if (yymmdd.length != 6) return yymmdd;
     final yy = int.tryParse(yymmdd.substring(0, 2)) ?? 0;
@@ -48,6 +52,7 @@ class MrzPassportParser {
     return '$year-$mm-$dd';
   }
 
+  /// Parses raw text input containing ICAO TD3 or TD1 MRZ lines.
   static ScanResult parse(String rawText) {
     final lines = rawText
         .split(RegExp(r'[\r\n]+'))

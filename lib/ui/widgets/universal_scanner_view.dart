@@ -12,10 +12,15 @@ import '../../services/universal_scan_engine.dart';
 import 'result_bottom_sheet.dart';
 import 'scanner_overlay_painter.dart';
 
+/// Main camera viewfinder widget supporting mode switching, gallery picks, and reticle overlays.
 class UniversalScannerView extends StatefulWidget {
+  /// Initial mode when the scanner opens.
   final ScanMode initialMode;
+
+  /// Optional callback invoked when a valid [ScanResult] is detected.
   final Function(ScanResult result)? onResultDetected;
 
+  /// Constructs a new [UniversalScannerView].
   const UniversalScannerView({
     super.key,
     this.initialMode = ScanMode.qr,

@@ -1,7 +1,9 @@
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 
+/// AAMVA PDF417 and Regional Driving License OCR parser.
 class DrivingLicenseParser {
+  /// Parses raw PDF417 or OCR text input from a Driving License.
   static ScanResult parse(String rawText) {
     if (rawText.contains('@') || rawText.contains('ANSI ') || rawText.contains('AAMVA')) {
       return _parseAamvaPdf417(rawText);

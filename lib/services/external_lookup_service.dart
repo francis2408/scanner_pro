@@ -8,10 +8,12 @@ import '../core/models/scanner_mode.dart';
 import '../core/parsers/aadhaar_parser.dart';
 import '../core/parsers/pan_card_parser.dart';
 
+/// Service providing real-time external REST API lookups for scan results.
 class ExternalLookupService {
   static final HttpClient _client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 6);
 
+  /// Performs asynchronous REST API lookups and returns extra metadata fields.
   static Future<Map<String, String>> fetchExternalDetails(
     ScanResult result,
   ) async {

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../core/models/scanner_mode.dart';
 
+/// Custom painter for camera viewfinder cutout, reticle corners, and animated laser beam.
 class ScannerOverlayPainter extends CustomPainter {
+  /// Active scanning mode.
   final ScanMode scanMode;
+
+  /// Animated progress value from 0.0 to 1.0.
   final double animationValue;
+
+  /// Accent highlight color.
   final Color accentColor;
 
+  /// Constructs a new [ScannerOverlayPainter].
   ScannerOverlayPainter({
     required this.scanMode,
     required this.animationValue,

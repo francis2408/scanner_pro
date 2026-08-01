@@ -7,6 +7,7 @@ import 'core/models/scanner_mode.dart';
 import 'ui/widgets/result_bottom_sheet.dart';
 import 'ui/widgets/universal_scanner_view.dart';
 
+/// Application entry point.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
@@ -18,7 +19,9 @@ void main() {
   runApp(const UniversalScannerApp());
 }
 
+/// Root widget for Universal Scanner Pro application.
 class UniversalScannerApp extends StatelessWidget {
+  /// Constructs [UniversalScannerApp].
   const UniversalScannerApp({super.key});
 
   @override

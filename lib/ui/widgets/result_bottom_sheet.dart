@@ -7,16 +7,22 @@ import '../../core/models/scan_result.dart';
 import '../../core/models/scanner_mode.dart';
 import '../../services/external_lookup_service.dart';
 
+/// A bottom sheet modal widget displaying parsed scan fields and live REST API metadata.
 class ResultBottomSheet extends StatefulWidget {
+  /// The [ScanResult] instance containing extracted fields.
   final ScanResult result;
+
+  /// Callback triggered when the sheet is dismissed.
   final VoidCallback onDismiss;
 
+  /// Constructs a [ResultBottomSheet].
   const ResultBottomSheet({
     super.key,
     required this.result,
     required this.onDismiss,
   });
 
+  /// Displays the result bottom sheet modal on top of [context].
   static Future<void> show(BuildContext context, ScanResult result) {
     return showModalBottomSheet(
       context: context,

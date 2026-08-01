@@ -11,6 +11,7 @@ import '../core/parsers/mrz_passport_parser.dart';
 import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/vin_parser.dart';
 
+/// Orchestrates ML Kit vision AI models and routes camera/image inputs to specialized parsers.
 class UniversalScanEngine {
   late final BarcodeScanner _barcodeScanner;
   late final TextRecognizer _textRecognizer;
@@ -18,6 +19,7 @@ class UniversalScanEngine {
 
   bool _isInitialized = false;
 
+  /// Initializes underlying Google ML Kit vision models.
   void initialize() {
     if (_isInitialized) return;
     _barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
@@ -32,6 +34,7 @@ class UniversalScanEngine {
     _isInitialized = true;
   }
 
+  /// Closes and disposes active ML Kit resources.
   void dispose() {
     if (!_isInitialized) return;
     _barcodeScanner.close();
@@ -40,6 +43,7 @@ class UniversalScanEngine {
     _isInitialized = false;
   }
 
+  /// Processes an image from a local file path.
   Future<ScanResult> processImageFile(String imagePath, ScanMode mode) async {
     initialize();
     try {
@@ -50,6 +54,7 @@ class UniversalScanEngine {
     }
   }
 
+  /// Processes an ML Kit [InputImage] for the specified [ScanMode].
   Future<ScanResult> processInputImage(
     InputImage inputImage,
     ScanMode mode, {

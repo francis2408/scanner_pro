@@ -1,19 +1,41 @@
 import 'package:flutter/material.dart';
 
+/// Supported scanning modes in Universal Scanner Pro.
 enum ScanMode {
+  /// QR Code scanning mode (URLs, vCard, WiFi, UPI, Geo).
   qr,
+
+  /// 1D Retail and logistics barcode scanning mode (EAN, UPC, Code128).
   barcode,
+
+  /// PDF417 stacked 2D barcode scanning mode.
   pdf417,
+
+  /// Passport MRZ (Machine Readable Zone) scanning mode.
   passport,
+
+  /// Indian Aadhaar Card Secure QR & OCR mode.
   aadhaar,
+
+  /// Income Tax PAN Card OCR mode.
   pan,
+
+  /// Driving License PDF417 & OCR mode.
   drivingLicense,
+
+  /// ISO 3779 17-character VIN number mode.
   vin,
+
+  /// General OCR text recognition mode.
   ocr,
+
+  /// Face detection & landmark analysis mode.
   face,
 }
 
+/// Extension methods for [ScanMode] providing UI metadata.
 extension ScanModeExtension on ScanMode {
+  /// The user-facing display title for this mode.
   String get title {
     switch (this) {
       case ScanMode.qr:
@@ -39,6 +61,7 @@ extension ScanModeExtension on ScanMode {
     }
   }
 
+  /// The user-facing subtitle description for this mode.
   String get subtitle {
     switch (this) {
       case ScanMode.qr:
@@ -64,6 +87,7 @@ extension ScanModeExtension on ScanMode {
     }
   }
 
+  /// The icon representing this mode.
   IconData get icon {
     switch (this) {
       case ScanMode.qr:
@@ -89,6 +113,7 @@ extension ScanModeExtension on ScanMode {
     }
   }
 
+  /// Guidance text displayed over camera viewfinder for this mode.
   String get guideText {
     switch (this) {
       case ScanMode.qr:
@@ -114,6 +139,7 @@ extension ScanModeExtension on ScanMode {
     }
   }
 
+  /// Target aspect ratio (width / height) for camera reticle cutout.
   double get targetAspectRatio {
     switch (this) {
       case ScanMode.qr:
@@ -137,6 +163,7 @@ extension ScanModeExtension on ScanMode {
     }
   }
 
+  /// High-level category grouping for this scan mode.
   String get category {
     switch (this) {
       case ScanMode.qr:

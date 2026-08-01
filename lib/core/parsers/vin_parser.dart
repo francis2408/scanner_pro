@@ -1,6 +1,7 @@
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 
+/// ISO 3779 17-character Vehicle Identification Number (VIN) parser and check digit verifier.
 class VinParser {
   static const Map<String, int> _charValues = {
     'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8,
@@ -42,6 +43,7 @@ class VinParser {
     'MBH': 'Nissan (India)',
   };
 
+  /// Calculates the Position 9 check digit for a 17-character VIN.
   static String calculateCheckDigit(String vin) {
     if (vin.length != 17) return '';
     int sum = 0;
@@ -54,6 +56,7 @@ class VinParser {
     return remainder == 10 ? 'X' : remainder.toString();
   }
 
+  /// Decodes Position 10 character into vehicle model year range.
   static String decodeModelYear(String pos10) {
     final char = pos10.toUpperCase();
     const map = {
@@ -68,6 +71,7 @@ class VinParser {
     return map[char] ?? 'Unknown ($char)';
   }
 
+  /// Parses raw text into a vehicle VIN [ScanResult].
   static ScanResult parse(String rawText) {
     final vinRegex = RegExp(r'\b[A-HJ-NPR-Z0-9]{17}\b', caseSensitive: false);
     final match = vinRegex.firstMatch(rawText.toUpperCase());

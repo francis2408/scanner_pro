@@ -1,6 +1,7 @@
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 
+/// Indian Income Tax PAN (Permanent Account Number) Card parser & fuzzy OCR engine.
 class PanCardParser {
   static const Map<String, String> _holderStatusMap = {
     'P': 'Individual / Person',
@@ -14,6 +15,7 @@ class PanCardParser {
     'J': 'Artificial Juridical Person',
   };
 
+  /// Decodes 4th character status code to Taxpayer Category name.
   static String getCategoryName(String statusChar) {
     return _holderStatusMap[statusChar.toUpperCase()] ??
         'Taxpayer Category ($statusChar)';
@@ -72,6 +74,7 @@ class PanCardParser {
     return null;
   }
 
+  /// Parses raw text input into a structured PAN card [ScanResult].
   static ScanResult parse(String rawText) {
     final uppercaseText = rawText.toUpperCase();
     final foundPan = _extractPanCandidate(uppercaseText);
