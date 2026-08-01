@@ -45,16 +45,15 @@ class _ResultBottomSheetState extends State<ResultBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _apiLookupFuture = ExternalLookupService.fetchExternalDetails(
-      widget.result,
-    ).then((details) {
-      if (mounted && details.isNotEmpty) {
-        setState(() {
-          widget.result.fields.addAll(details);
+    _apiLookupFuture = ExternalLookupService.fetchExternalDetails(widget.result)
+        .then((details) {
+          if (mounted && details.isNotEmpty) {
+            setState(() {
+              widget.result.fields.addAll(details);
+            });
+          }
+          return details;
         });
-      }
-      return details;
-    });
   }
 
   @override

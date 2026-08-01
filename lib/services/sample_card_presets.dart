@@ -20,12 +20,14 @@ class SampleCardPresets {
           ),
           SampleItem(
             label: 'vCard Contact QR',
-            payload: 'BEGIN:VCARD\nVERSION:3.0\nN:Scanner;Universal;;;\nFN:Universal Scanner SDK\nORG:DeepMind Tech\nTEL;TYPE=WORK,VOICE:+18005550199\nEMAIL:scanner@sdk.internal\nEND:VCARD',
+            payload:
+                'BEGIN:VCARD\nVERSION:3.0\nN:Scanner;Universal;;;\nFN:Universal Scanner SDK\nORG:DeepMind Tech\nTEL;TYPE=WORK,VOICE:+18005550199\nEMAIL:scanner@sdk.internal\nEND:VCARD',
             mode: ScanMode.qr,
           ),
           SampleItem(
             label: 'UPI Payment QR',
-            payload: 'upi://pay?pa=universalscanner@bank&pn=Universal%20Scanner%20SDK&am=250.00&cu=INR',
+            payload:
+                'upi://pay?pa=universalscanner@bank&pn=Universal%20Scanner%20SDK&am=250.00&cu=INR',
             mode: ScanMode.qr,
           ),
         ];
@@ -48,7 +50,8 @@ class SampleCardPresets {
         return [
           SampleItem(
             label: 'Airline Boarding Pass PDF417',
-            payload: 'M1DESMARAIS/LUC       EABC123 YULCDGAF 0833 015F001A0001 100',
+            payload:
+                'M1DESMARAIS/LUC       EABC123 YULCDGAF 0833 015F001A0001 100',
             mode: ScanMode.pdf417,
           ),
         ];
@@ -57,12 +60,14 @@ class SampleCardPresets {
         return [
           SampleItem(
             label: 'USA Passport MRZ (TD3)',
-            payload: 'P<USADICKSON<<BENJAMIN<FRANKLIN<<<<<<<<<<<<<\n1234567897USA8501019M3001018<<<<<<<<<<<<<<04',
+            payload:
+                'P<USADICKSON<<BENJAMIN<FRANKLIN<<<<<<<<<<<<<\n1234567897USA8501019M3001018<<<<<<<<<<<<<<04',
             mode: ScanMode.passport,
           ),
           SampleItem(
             label: 'German ID Card MRZ (TD1)',
-            payload: 'IDD<<T220001293<<<<<<<<<<<<<<<\n6408125M2010315D<<<<<<<<<<<<^6\nMUSTREMANN<<ERIKA<<<<<<<<<<<<<',
+            payload:
+                'IDD<<T220001293<<<<<<<<<<<<<<<\n6408125M2010315D<<<<<<<<<<<<^6\nMUSTREMANN<<ERIKA<<<<<<<<<<<<<',
             mode: ScanMode.passport,
           ),
         ];
@@ -71,12 +76,14 @@ class SampleCardPresets {
         return [
           SampleItem(
             label: 'Aadhaar Secure QR XML',
-            payload: '<?xml version="1.0" encoding="UTF-8"?><PrintLetterBarcodeData uid="234567890124" name="Rajesh Kumar" gender="M" yob="1992" co="S/O Ramesh Kumar" house="42" street="MG Road" loc="Indiranagar" vtc="Bengaluru" dist="Bengaluru" state="Karnataka" pc="560038"/>',
+            payload:
+                '<?xml version="1.0" encoding="UTF-8"?><PrintLetterBarcodeData uid="234567890124" name="Rajesh Kumar" gender="M" yob="1992" co="S/O Ramesh Kumar" house="42" street="MG Road" loc="Indiranagar" vtc="Bengaluru" dist="Bengaluru" state="Karnataka" pc="560038"/>',
             mode: ScanMode.aadhaar,
           ),
           SampleItem(
             label: 'Aadhaar Card OCR Front',
-            payload: 'GOVERNMENT OF INDIA\nRajesh Kumar\nDOB: 15/08/1992\nMale\n2345 6789 0124\nVID: 9182 7364 5512 3456',
+            payload:
+                'GOVERNMENT OF INDIA\nRajesh Kumar\nDOB: 15/08/1992\nMale\n2345 6789 0124\nVID: 9182 7364 5512 3456',
             mode: ScanMode.aadhaar,
           ),
         ];
@@ -85,12 +92,14 @@ class SampleCardPresets {
         return [
           SampleItem(
             label: 'Individual PAN Card',
-            payload: 'INCOME TAX DEPARTMENT\nGOVT OF INDIA\nABCDE1234F\nNAME: RAJESH KUMAR\nFATHER: RAMESH KUMAR\nDOB: 15/08/1992',
+            payload:
+                'INCOME TAX DEPARTMENT\nGOVT OF INDIA\nABCDE1234F\nNAME: RAJESH KUMAR\nFATHER: RAMESH KUMAR\nDOB: 15/08/1992',
             mode: ScanMode.pan,
           ),
           SampleItem(
             label: 'Company PAN Card',
-            payload: 'INCOME TAX DEPARTMENT\nGOVT OF INDIA\nCPKCS9876K\nNAME: TECH INNOVATIONS PRIVATE LIMITED\nDATE OF INCORPORATION: 10/02/2018',
+            payload:
+                'INCOME TAX DEPARTMENT\nGOVT OF INDIA\nCPKCS9876K\nNAME: TECH INNOVATIONS PRIVATE LIMITED\nDATE OF INCORPORATION: 10/02/2018',
             mode: ScanMode.pan,
           ),
         ];
@@ -99,12 +108,14 @@ class SampleCardPresets {
         return [
           SampleItem(
             label: 'AAMVA US DL PDF417',
-            payload: '@\n\nANSI 636000080002DL00390207DLDAQD1234567\nDCSDOE\nDACJOHN\nDADEDWARD\nDBB19880415\nDBA22001231\nDBD20200415\nDBC1\nDAG123 MAIN STREET\nDAISPRINGFIELD\nDAJVA\nDAK221500000\n',
+            payload:
+                '@\n\nANSI 636000080002DL00390207DLDAQD1234567\nDCSDOE\nDACJOHN\nDADEDWARD\nDBB19880415\nDBA22001231\nDBD20200415\nDBC1\nDAG123 MAIN STREET\nDAISPRINGFIELD\nDAJVA\nDAK221500000\n',
             mode: ScanMode.drivingLicense,
           ),
           SampleItem(
             label: 'Indian DL Card OCR',
-            payload: 'UNION OF INDIA DRIVING LICENSE\nMAHARASHTRA STATE\nDL NO: MH02 20210084729\nName: VIKRAM SHARMA\nDOB: 24/11/1990\nValid Until: 23/11/2040\nClass: LMV, MCWG',
+            payload:
+                'UNION OF INDIA DRIVING LICENSE\nMAHARASHTRA STATE\nDL NO: MH02 20210084729\nName: VIKRAM SHARMA\nDOB: 24/11/1990\nValid Until: 23/11/2040\nClass: LMV, MCWG',
             mode: ScanMode.drivingLicense,
           ),
         ];
@@ -165,7 +176,11 @@ Thank you for choosing Universal Scanner!''',
             'Format': 'QR Code (2D)',
             'Content Type': sample.payload.startsWith('WIFI:')
                 ? 'WiFi Credentials'
-                : (sample.payload.startsWith('BEGIN:VCARD') ? 'vCard Contact' : (sample.payload.startsWith('upi:') ? 'UPI Payment' : 'URL / Text')),
+                : (sample.payload.startsWith('BEGIN:VCARD')
+                      ? 'vCard Contact'
+                      : (sample.payload.startsWith('upi:')
+                            ? 'UPI Payment'
+                            : 'URL / Text')),
             'Payload': sample.payload,
           },
         );
@@ -217,7 +232,8 @@ Thank you for choosing Universal Scanner!''',
           confidence: 0.95,
           fields: {
             'Text Type': 'Document OCR',
-            'Extracted Lines': '${sample.payload.split('\n').length} Lines Recognized',
+            'Extracted Lines':
+                '${sample.payload.split('\n').length} Lines Recognized',
             'Full Text': sample.payload,
           },
         );
@@ -225,7 +241,8 @@ Thank you for choosing Universal Scanner!''',
       case ScanMode.face:
         return ScanResult(
           mode: ScanMode.face,
-          rawValue: 'Face Detected (Bounding Box: [L: 120, T: 180, R: 360, B: 480])',
+          rawValue:
+              'Face Detected (Bounding Box: [L: 120, T: 180, R: 360, B: 480])',
           isValid: true,
           confidence: 0.98,
           fields: {
@@ -262,9 +279,5 @@ class SampleItem {
   final ScanMode mode;
 
   /// Constructs a new [SampleItem].
-  SampleItem({
-    required this.label,
-    required this.payload,
-    required this.mode,
-  });
+  SampleItem({required this.label, required this.payload, required this.mode});
 }

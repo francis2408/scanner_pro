@@ -36,8 +36,8 @@ class ScanResult {
     DateTime? timestamp,
     this.imagePath,
     Map<String, dynamic>? metadata,
-  })  : timestamp = timestamp ?? DateTime.now(),
-        metadata = metadata ?? {};
+  }) : timestamp = timestamp ?? DateTime.now(),
+       metadata = metadata ?? {};
 
   /// Serializes the scan result to a JSON-compatible map.
   Map<String, dynamic> toJson() {
