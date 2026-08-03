@@ -60,6 +60,9 @@ class ScanResult {
   /// Detected barcode format or document type specification.
   final String? format;
 
+  /// Classified document category string (e.g. invoice, receipt, passport, aadhaar, pan, vin).
+  final String? documentCategory;
+
   /// Region of Interest (ROI) sub-rectangle cutout in frame pixel coordinates.
   final Rect? roi;
 
@@ -110,6 +113,7 @@ class ScanResult {
     this.imagePath,
     this.rawBytes,
     this.format,
+    this.documentCategory,
     this.roi,
     List<String>? enhancementsApplied,
     this.isDuplicate = false,
@@ -140,6 +144,7 @@ class ScanResult {
     String? imagePath,
     Uint8List? rawBytes,
     String? format,
+    String? documentCategory,
     Rect? roi,
     List<String>? enhancementsApplied,
     bool? isDuplicate,
@@ -164,6 +169,7 @@ class ScanResult {
       imagePath: imagePath ?? this.imagePath,
       rawBytes: rawBytes ?? this.rawBytes,
       format: format ?? this.format,
+      documentCategory: documentCategory ?? this.documentCategory,
       roi: roi ?? this.roi,
       enhancementsApplied: enhancementsApplied ?? this.enhancementsApplied,
       isDuplicate: isDuplicate ?? this.isDuplicate,
@@ -192,6 +198,7 @@ class ScanResult {
       'timestamp': timestamp.toIso8601String(),
       'imagePath': imagePath,
       'format': format ?? metadata['format'],
+      'documentCategory': documentCategory,
       'isDuplicate': isDuplicate,
       'enhancementsApplied': enhancementsApplied,
       'corners': corners
@@ -238,8 +245,6 @@ class ScanResult {
 
   @override
   String toString() {
-    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, format: $format, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms, quality: ${qualityScore?.overallQuality.toStringAsFixed(2) ?? 'N/A'})';
+    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, category: $documentCategory, confidence: $confidence, format: $format, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms)';
   }
 }
-
-

@@ -30,7 +30,7 @@ class DocumentCorners {
 }
 
 /// Specialized service providing Document Edge Detection, Perspective Matrix calculations,
-/// Shadow Removal image filters, and Auto Crop bounds.
+/// Shadow Removal image filters, Image Compression, and Auto Crop bounds.
 class DocumentScannerService {
   /// Detects document rectangular corners in image frame dimensions.
   static DocumentCorners detectDocumentEdges(Size imageSize) {
@@ -82,13 +82,12 @@ class DocumentScannerService {
     if (grayBytes.isEmpty) return grayBytes;
     final result = Uint8List(grayBytes.length);
 
-    // Adaptive threshold & background whitening
     for (int i = 0; i < grayBytes.length; i++) {
       final val = grayBytes[i];
       if (val > 180) {
-        result[i] = 255; // Whiten background paper
+        result[i] = 255;
       } else if (val < 90) {
-        result[i] = 0; // Darken ink text
+        result[i] = 0;
       } else {
         final scaled = ((val - 90) * (255 / 90)).clamp(0, 255).toInt();
         result[i] = scaled;
@@ -123,10 +122,22 @@ class DocumentScannerService {
     final result = Uint8List(grayBytes.length);
     for (int i = 0; i < grayBytes.length; i++) {
       final val = grayBytes[i];
-      // Sigmoid contrast curve boost
       final boosted = (255.0 / (1.0 + math.exp(-0.03 * (val - 128.0)))).clamp(0, 255).toInt();
       result[i] = boosted;
     }
     return result;
+  }
+
+  /// Compresses document raw bytes buffer by downsampling stride step for enterprise efficiency.
+  static Uint8List compressImageBytes(Uint8List rawBytes, {double quality = 0.8}) {
+    if (rawBytes.isEmpty || quality >= 1.0) return rawBytes;
+    final step = (1.0 / quality.clamp(0.1, 1.0)).round();
+    if (step <= 1) return rawBytes;
+
+    final compressed = <int>[];
+    for (int i = 0; i < rawBytes.length; i += step) {
+      compressed.add(rawBytes[i]);
+    }
+    return Uint8List.fromList(compressed);
   }
 }

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:camera/camera.dart' show ResolutionPreset;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,32 +29,46 @@ void main() {
       controller.dispose();
     });
 
-    test('1. ScannerOptions Enterprise RectScanArea & AllowedFormats Configuration', () {
-      expect(controller.options.rectScanArea, equals(const Rect.fromLTWH(50, 50, 200, 200)));
-      expect(controller.options.allowedFormats, contains('QR_CODE'));
-      expect(controller.options.enableSound, isFalse);
-      expect(controller.options.enableVibration, isFalse);
-      expect(controller.options.duplicateTimeout.inMilliseconds, equals(1500));
-    });
+    test(
+      '1. ScannerOptions Enterprise RectScanArea & AllowedFormats Configuration',
+      () {
+        expect(
+          controller.options.rectScanArea,
+          equals(const Rect.fromLTWH(50, 50, 200, 200)),
+        );
+        expect(controller.options.allowedFormats, contains('QR_CODE'));
+        expect(controller.options.enableSound, isFalse);
+        expect(controller.options.enableVibration, isFalse);
+        expect(
+          controller.options.duplicateTimeout.inMilliseconds,
+          equals(1500),
+        );
+      },
+    );
 
-    test('2. Camera Controls Focus Locking, Torch Level & Resolution Switching', () async {
-      expect(controller.isFocusLocked, isFalse);
-      await controller.lockFocus();
-      expect(controller.isFocusLocked, isTrue);
+    test(
+      '2. Camera Controls Focus Locking, Torch Level & Resolution Switching',
+      () async {
+        expect(controller.isFocusLocked, isFalse);
+        await controller.lockFocus();
+        expect(controller.isFocusLocked, isTrue);
 
-      await controller.unlockFocus();
-      expect(controller.isFocusLocked, isFalse);
+        await controller.unlockFocus();
+        expect(controller.isFocusLocked, isFalse);
 
-      await controller.setTorchLevel(0.8);
-      expect(controller.torchLevel, equals(0.8));
+        await controller.setTorchLevel(0.8);
+        expect(controller.torchLevel, equals(0.8));
 
-      expect(controller.resolutionPreset, equals(ResolutionPreset.high));
-    });
+        expect(controller.resolutionPreset, equals(ResolutionPreset.high));
+      },
+    );
 
     test('3. Multi-Barcode Detection & scanAll API Verification', () async {
       final engine = UniversalScanEngine();
 
-      final sampleBytes = Uint8List.fromList('QR1\n---\nQR2\n---\nQR3'.codeUnits);
+      final sampleBytes = Uint8List.fromList(
+        'QR1\n---\nQR2\n---\nQR3'.codeUnits,
+      );
       final result = await engine.processBytes(sampleBytes, ScanMode.multiCode);
 
       expect(result.isValid, isTrue);
@@ -67,7 +81,10 @@ void main() {
 
     test('4. Raw Bytes and Image Memory Processing', () async {
       final sampleBytes = Uint8List.fromList('https://flutter.dev'.codeUnits);
-      final result = await controller.processBytes(sampleBytes, mode: ScanMode.qr);
+      final result = await controller.processBytes(
+        sampleBytes,
+        mode: ScanMode.qr,
+      );
 
       expect(result.isValid, isTrue);
       expect(result.rawValue, equals('https://flutter.dev'));
@@ -132,7 +149,9 @@ void main() {
 
     test('8. Micro-Benchmark Suite Execution', () async {
       final engine = UniversalScanEngine();
-      final sampleBytes = Uint8List.fromList('BENCHMARK_PAYLOAD_TEST'.codeUnits);
+      final sampleBytes = Uint8List.fromList(
+        'BENCHMARK_PAYLOAD_TEST'.codeUnits,
+      );
 
       final benchmark = await ScannerBenchmark.runVisionEngineBenchmark(
         engine: engine,
@@ -146,57 +165,65 @@ void main() {
       expect(benchmark.toString(), contains('BENCHMARK'));
     });
 
-    test('9. Document Quality Scoring & Isolate Preprocessing Verification', () async {
-      final sampleBytes = Uint8List(640 * 480);
-      for (int i = 0; i < sampleBytes.length; i++) {
-        sampleBytes[i] = (i % 256);
-      }
+    test(
+      '9. Document Quality Scoring & Isolate Preprocessing Verification',
+      () async {
+        final sampleBytes = Uint8List(640 * 480);
+        for (int i = 0; i < sampleBytes.length; i++) {
+          sampleBytes[i] = (i % 256);
+        }
 
-      final taskData = IsolateFrameTaskData(
-        bytes: sampleBytes,
-        width: 640,
-        height: 480,
-        bytesPerRow: 640,
-        computeLuminosity: true,
-        enableEnhancement: true,
-        enableBlurDetection: true,
-      );
+        final taskData = IsolateFrameTaskData(
+          bytes: sampleBytes,
+          width: 640,
+          height: 480,
+          bytesPerRow: 640,
+          computeLuminosity: true,
+          enableEnhancement: true,
+          enableBlurDetection: true,
+        );
 
-      final result = await IsolateFrameProcessor.processFrame(taskData);
-      expect(result.qualityScore, isNotNull);
-      expect(result.qualityScore.blurScore, greaterThan(0));
-      expect(result.qualityScore.brightnessScore, greaterThanOrEqualTo(0.0));
-      expect(result.qualityScore.overallQuality, greaterThan(0.0));
-    });
+        final result = await IsolateFrameProcessor.processFrame(taskData);
+        expect(result.qualityScore, isNotNull);
+        expect(result.qualityScore.blurScore, greaterThan(0));
+        expect(result.qualityScore.brightnessScore, greaterThanOrEqualTo(0.0));
+        expect(result.qualityScore.overallQuality, greaterThan(0.0));
+      },
+    );
 
-    test('10. Multi-Frame Consensus Voting Engine for 98-99% Accuracy Target', () async {
-      final consensusController = ScannerController(
-        options: const ScannerOptions(
-          enableMultiFrameConsensus: true,
-          consensusFrameCount: 3,
-          consensusAccuracyThreshold: 0.98,
-          duplicateTimeout: Duration(milliseconds: 10),
-        ),
-      );
+    test(
+      '10. Multi-Frame Consensus Voting Engine for 98-99% Accuracy Target',
+      () async {
+        final consensusController = ScannerController(
+          options: const ScannerOptions(
+            enableMultiFrameConsensus: true,
+            consensusFrameCount: 3,
+            consensusAccuracyThreshold: 0.98,
+            duplicateTimeout: Duration(milliseconds: 10),
+          ),
+        );
 
-      final payloadBytes = Uint8List.fromList('HIGH_ACCURACY_PAYLOAD_99'.codeUnits);
+        final payloadBytes = Uint8List.fromList(
+          'HIGH_ACCURACY_PAYLOAD_99'.codeUnits,
+        );
 
-      int emitCount = 0;
-      double lastConfidence = 0.0;
-      consensusController.onResult.listen((res) {
-        emitCount++;
-        lastConfidence = res.confidence;
-      });
+        int emitCount = 0;
+        double lastConfidence = 0.0;
+        consensusController.onResult.listen((res) {
+          emitCount++;
+          lastConfidence = res.confidence;
+        });
 
-      // Send 3 identical frames to achieve 3/3 consensus
-      await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
-      await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
-      await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
+        // Send 3 identical frames to achieve 3/3 consensus
+        await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
+        await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
+        await consensusController.processBytes(payloadBytes, mode: ScanMode.qr);
 
-      expect(emitCount, equals(1));
-      expect(lastConfidence, greaterThanOrEqualTo(0.98));
+        expect(emitCount, equals(1));
+        expect(lastConfidence, greaterThanOrEqualTo(0.98));
 
-      consensusController.dispose();
-    });
+        consensusController.dispose();
+      },
+    );
   });
 }

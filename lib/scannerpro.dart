@@ -15,6 +15,7 @@ export 'core/parsers/receipt_parser.dart';
 export 'core/parsers/vin_parser.dart';
 export 'core/plugins/scanner_plugin.dart';
 export 'core/services/csv_exporter.dart';
+export 'core/services/document_classifier.dart';
 export 'core/services/document_scanner_service.dart';
 export 'core/services/feedback_service.dart';
 export 'core/services/json_exporter.dart';

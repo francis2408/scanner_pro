@@ -16,17 +16,39 @@
 
 ---
 
-## ⚡ Overview & Architecture
+## ⚡ Overview & Enterprise Features
 
-**Universal Scanner Pro** (`scannerpro`) is an enterprise-grade, high-throughput Flutter SDK for real-time document parsing, ML Kit vision AI, and automated REST API lookups across **10 scanning modes**.
+**Universal Scanner Pro** (`scannerpro`) is the #1 enterprise-grade, high-throughput Flutter scanning SDK for real-time document parsing, ML Kit vision AI, offline ID extraction, PDF generation, and automated REST API lookups.
 
-Equipped with Google ML Kit Vision AI, mathematical checksum validators (Verhoeff D10, ICAO Doc 9303, ISO 3779), an **in-memory sub-millisecond LRU cache** (`_lookupCache`), and direct external REST API enrichments, **Scanner Pro** delivers instant document verification, custom reticle designs, and feature-flag access control.
+### 🏢 Enterprise Features
+- **Offline OCR & Barcode**: 100% on-device text recognition, 1D/2D barcodes, QR codes, and PDF417.
+- **Offline ID Scanners**: Indian Aadhaar Card (Verhoeff D10 + Secure QR XML), Income Tax PAN Card, Passport (ICAO Doc 9303 MRZ), Driving License (AAMVA PDF417), and Vehicle VIN (ISO 3779).
+- **Searchable PDF Generation**: Generates PDF documents with an embedded searchable text layer for text selection.
+- **PDF Compression & Image Compression**: Advanced stream encoding and image downsampling for minimal output file sizes.
+- **Watermarking**: Customizable diagonal semi-transparent watermark text overlays on PDF pages.
+- **PDF Encryption**: Standard security dictionary (`/Filter /Standard /V 2 /R 3 /P -4`) supporting user & owner passwords.
+- **Digital Signatures**: PKCS#7 detached digital signature block (`/ByteRange`, `/SubFilter /adbe.pkcs7.detached`, signer name, location, timestamp).
+- **AI-Powered Document Classification**: Automatic category detection (`invoice`, `receipt`, `passport`, `aadhaar`, `pan`, `drivingLicense`, `businessCard`, `vin`, `barcode`, `generalDocument`).
 
-### 🏗️ Architecture & Component Decoupling
-- **`ScannerController`**: Manages camera lifecycle, flash/zoom controls, active scanner modes, and frame stream listeners.
-- **`ScannerCameraPreview`**: Unopinionated, raw camera viewport widget for full screen design customizability.
-- **`UniversalScanEngine`**: Streamlined ML Kit vision pipeline with zero-copy buffer allocations.
-- **`ExternalLookupService`**: Real-time REST API enrichment engine with sub-millisecond LRU memory cache (<0.1ms).
+---
+
+## 🗺️ Release Roadmap (v1.7 – v2.0)
+
+| Release | Focus Area | Key Features Delivered |
+| :--- | :--- | :--- |
+| **v1.7** | Core Scanning & Control | Smart Auto Scan, Multi-Barcode, Scan Region ROI, Scanner Controller, Custom Overlay |
+| **v1.8** | Document & PDF Pipeline | Text OCR, Document Scanner (quad bounds & perspective crop), PDF Generator, Batch Scan |
+| **v1.9** | ID Extraction Suite | Aadhaar Scanner (Verhoeff D10), PAN Scanner, Passport Scanner, MRZ Scanner |
+| **v2.0** | Enterprise & Vision AI | Face Detection, VIN Scanner, Business Card Scanner, Searchable PDF, AI Document Classification, Encryption, Digital Signature |
+
+---
+
+## 🏗️ Architecture & Component Decoupling
+- **`ScannerController`**: Manages camera lifecycle, flash/zoom controls, active scanner modes, ROI windows, and frame listeners.
+- **`ScannerCameraPreview`**: Unopinionated, raw camera viewport widget for custom UI designs.
+- **`UniversalScanEngine`**: ML Kit vision AI pipeline with zero-copy buffer allocations.
+- **`DocumentClassifier`**: Heuristic & AI document type detector.
+- **`PdfExportUtil`**: Enterprise PDF generator supporting compression, watermarks, passwords, signatures, and searchable text layers.
 - **Standalone Parsers**: Pure Dart mathematical parsers (`AadhaarParser`, `PanCardParser`, `MrzPassportParser`, `DrivingLicenseParser`, `VinParser`, `Gs1BarcodeParser`).
 
 ---
@@ -43,12 +65,11 @@ Equipped with Google ML Kit Vision AI, mathematical checksum validators (Verhoef
 | **Passport MRZ Parser** | **166.8 µs / op** | **~6,000 ops/sec** | Dual-line ICAO 9303 7-3-1 modulo-10 checksum verifier |
 | **External API Lookup Cache** | **< 0.1 ms** | **Instant Cache Hit** | 250-item thread-safe LRU memory cache |
 
-## 🎨 Custom Screen Design & Visual Themes
+---
 
-![Scanner UI Preview](https://raw.githubusercontent.com/francis2408/scanner_pro/main/doc/assets/scanner_ui_preview.png)
+## 🎨 Custom UI Screen Design
 
-### Use ONLY the Functionality with Your Own Screen Design
-If you want to use **ONLY** the scanner functionality and create your own screen design, use `ScannerController` and `ScannerCameraPreview`:
+You can use **ONLY** the scanner functionality and build your own custom screen design:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -67,7 +88,6 @@ class _MyCustomScannerScreenState extends State<MyCustomScannerScreen> {
   @override
   void initState() {
     super.initState();
-    // 1. Instantiate standalone scanner controller
     _controller = ScannerController(
       initialMode: ScanMode.qr,
       onResultDetected: (result) => print('Scanned: ${result.rawValue}'),
@@ -89,10 +109,10 @@ class _MyCustomScannerScreenState extends State<MyCustomScannerScreen> {
         return Scaffold(
           body: Stack(
             children: [
-              // 2. Unopinionated camera feed widget
+              // 1. Raw camera feed widget
               ScannerCameraPreview(controller: _controller),
 
-              // 3. Your custom reticle overlay & screen design!
+              // 2. Custom reticle overlay
               Center(
                 child: Container(
                   width: 260,
@@ -104,7 +124,7 @@ class _MyCustomScannerScreenState extends State<MyCustomScannerScreen> {
                 ),
               ),
 
-              // 4. Your custom buttons & controls
+              // 3. Custom buttons
               Positioned(
                 bottom: 30,
                 left: 20,
@@ -136,68 +156,42 @@ class _MyCustomScannerScreenState extends State<MyCustomScannerScreen> {
 }
 ```
 
-Or use `UniversalScannerView.builder(...)` for total layout customization:
+---
+
+## 💻 Enterprise PDF Export & AI Classification Examples
+
+### Generating Searchable, Encrypted & Digitally Signed PDFs
+
 ```dart
-UniversalScannerView.builder(
-  builder: (context, controller, cameraPreview) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          cameraPreview, // Raw camera feed
-          MyCustomFrameWidget(),
-          MyCustomButtons(controller: controller),
-        ],
-      ),
-    );
-  },
+import 'package:scannerpro/scannerpro.dart';
+
+final pdfBytes = PdfExportUtil.exportResultsToPdf(
+  results: scanResultsList,
+  title: 'Enterprise Scanned Audit Document',
+  author: 'ScannerPro SDK Enterprise',
+  watermarkText: 'CONFIDENTIAL',
+  password: 'user_password_123',
+  isEncrypted: true,
+  digitalSignature: true,
+  isSearchablePdf: true,
+  enableCompression: true,
+  imageCompressionQuality: 0.85,
 );
+
+// Save or share pdfBytes directly
 ```
 
-### Pre-packaged Visual Themes
-- **Built-in Presets**: `ScannerUiTheme.dark`, `ScannerUiTheme.cyan`, `ScannerUiTheme.emerald`, `ScannerUiTheme.amber`.
-- **Custom Color Overrides**: Reticle corners, border outlines, laser beam colors, viewfinder mask opacity, and background containers.
-- **Dimensional Controls**: Custom reticle corner radii, stroke widths, bracket lengths, and element toggles.
-
----
-
-## 🌟 Key Features
-
-### 📄 1. Multi-Document & Vision AI Engines (10 Scan Modes)
-| Mode | Target Document / Symbology | Parsing & Validation Pipeline |
-| :--- | :--- | :--- |
-| **Aadhaar Card** | Indian Aadhaar Secure QR & Front OCR | Verhoeff D10 checksum + XML/OCR text extractor + India Post Pincode API |
-| **PAN Card** | Income Tax Permanent Account Number | 10-char structural regex + Surname decoding + Fuzzy OCR space/letter repair |
-| **Passport MRZ** | Passports & ICAO Doc 9303 MRZ Lines | 2-line & 3-line MRZ parser + 7-3-1 weight check digits + Country metadata |
-| **Driving License** | AAMVA PDF417 Barcode & State DL OCR | AAMVA 3-character field decoding + Expiration & issue date extractors |
-| **Vehicle VIN** | 17-character ISO 3779 Vehicle Number | Transposition check digit + WMI manufacturer decode + Live NHTSA API |
-| **1D Barcode** | EAN-13, EAN-8, UPC-A, Code39, Code128 | Retail barcode parser + Open Food Facts & UPC Item DB REST lookups |
-| **QR Code** | URLs, WiFi, VCard, Geo, UPI QR | UPI payment extractor (VPA, GPay/PhonePe, SBI, MCC) + Web metadata API |
-| **PDF417** | Stacked 2D Barcodes | High-density ID card & boarding pass parsing |
-| **Text OCR** | Print & Handwriting Recognition | General on-device text block & line extraction |
-| **Face AI** | Face Landmark & Pose Detection | Eye landmark mesh circles + Face oval reticle guide |
-
----
-
-### 🛡️ 2. Selective Access Control (Feature Flags)
-Selectively enable or restrict scanner modes based on feature flags or explicit mode lists:
+### AI-Powered Document Classification
 
 ```dart
-// Enable only Aadhaar and PAN Card scanning
-UniversalScannerView(
-  enableAadhaar: true,
-  enablePan: true,
-  enablePassport: false,
-  enableDrivingLicense: false,
-  enableQr: false,
-)
+import 'package:scannerpro/scannerpro.dart';
+
+final classification = DocumentClassifier.classify(rawOcrText);
+
+print('Document Category: ${classification.category.name}'); // e.g. "invoice", "passport", "aadhaar"
+print('Confidence Score: ${classification.confidence}');
+print('Detected Keywords: ${classification.detectedKeywords}');
 ```
-
----
-
-### ⚡ 3. Binary Size & Performance Optimization
-- **Unbundled Google Play Services ML Models**: Downloads vision models on demand via Google Play Services (`com.google.mlkit.vision.DEPENDENCIES`), saving **~25–35 MB** in APK download size.
-- **R8 Bytecode & Resource Shrinking**: Automated bytecode minification and resource stripping via ProGuard optimization rules.
-- **Zero Unused Dependencies**: Streamlined transitive dependencies for minimal package footprint.
 
 ---
 
@@ -209,101 +203,16 @@ Add `scannerpro` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  scannerpro: ^1.1.3
+  scannerpro: ^2.0.0
 ```
 
 Run `flutter pub get`.
 
 ---
 
-## 💻 Usage Examples
-
-### 1. Simple Scanner Widget
-```dart
-import 'package:flutter/material.dart';
-import 'package:scannerpro/scannerpro.dart';
-
-class MyScannerScreen extends StatelessWidget {
-  const MyScannerScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: UniversalScannerView(
-        initialMode: ScanMode.qr,
-        onResultDetected: (ScanResult result) {
-          debugPrint('Scanned Mode: ${result.mode.title}');
-          debugPrint('Parsed Data: ${result.fields}');
-          debugPrint('Validity: ${result.isValid}');
-        },
-      ),
-    );
-  }
-}
-```
-
----
-
-### 2. Custom UI Design & Theme Presets
-```dart
-UniversalScannerView(
-  // Use preset theme:
-  theme: ScannerUiTheme.emerald,
-
-  // Or override individual design parameters:
-  primaryAccentColor: const Color(0xFFFF0055), // Custom Neon Pink
-  backgroundColor: const Color(0xFF10141D),
-  overlayMaskColor: Colors.black.withOpacity(0.75),
-  laserBeamColor: const Color(0xFFFFD600),
-  showModeBadge: true,
-  showGuideBox: true,
-  showLaserBeam: true,
-)
-```
-
----
-
-### 3. Feature-Flagged Document Access Control
-```dart
-UniversalScannerView(
-  initialMode: ScanMode.aadhaar,
-  enableAadhaar: true,
-  enablePan: true,
-  enablePassport: true,
-  enableDrivingLicense: false,
-  enableQr: false,
-  enableBarcode: false,
-)
-```
-
----
-
-### 4. Direct Standalone Parser APIs
-You can also use standalone mathematical parsers directly without opening the camera view:
-
-```dart
-import 'package:scannerpro/scannerpro.dart';
-
-// Parse Indian Aadhaar Card QR/OCR text:
-final aadhaarResult = AadhaarParser.parse(rawTextOrXml);
-print('UID Checksum Valid: ${aadhaarResult.isValid}');
-
-// Parse Income Tax PAN Card text:
-final panResult = PanCardParser.parse('ABCPE1234F');
-print('Taxpayer Category: ${panResult.fields['Taxpayer Category']}');
-
-// Parse Passport MRZ string:
-final passportResult = MrzPassportParser.parse(mrzLines);
-print('Passport Number: ${passportResult.fields['Passport Number']}');
-```
-
----
-
 ## 🔧 Platform Setup
 
 ### Android Setup (`android/app/src/main/AndroidManifest.xml`)
-
-Add camera permissions and the unbundled ML Kit vision model downloader:
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -321,8 +230,6 @@ Add camera permissions and the unbundled ML Kit vision model downloader:
 ```
 
 ### iOS Setup (`ios/Runner/Info.plist`)
-
-Add the camera usage permission string:
 
 ```xml
 <key>NSCameraUsageDescription</key>

@@ -16,6 +16,7 @@ import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/receipt_parser.dart';
 import '../core/parsers/vin_parser.dart';
 import '../core/plugins/scanner_plugin.dart';
+import '../core/services/document_classifier.dart';
 import '../core/services/document_scanner_service.dart';
 
 /// Orchestrates ML Kit vision AI models via google_mlkit_commons and routes
@@ -80,7 +81,6 @@ class UniversalScanEngine {
     initialize();
     final stopwatch = Stopwatch()..start();
 
-    // Check if custom registered plugin exists for mode
     final plugin = ScannerPluginRegistry.findForMode(mode);
     if (plugin != null) {
       try {
@@ -141,6 +141,13 @@ class UniversalScanEngine {
       corners = docCorners.toList();
     }
 
+    // AI Classification pass
+    final classification = DocumentClassifier.classify(
+      rawResult.rawValue,
+      fields: rawResult.fields,
+      mode: mode,
+    );
+
     return ScanResult(
       mode: rawResult.mode,
       rawValue: rawResult.rawValue,
@@ -151,13 +158,17 @@ class UniversalScanEngine {
       imagePath: rawResult.imagePath,
       rawBytes: rawResult.rawBytes,
       format: rawResult.format ?? rawResult.metadata['format'] as String?,
+      documentCategory: classification.category.name,
       roi: rawResult.roi,
       enhancementsApplied: rawResult.enhancementsApplied,
       corners: corners,
       boundingBox: bbox,
       imageSize: imgSize,
       scanDuration: duration,
-      metadata: rawResult.metadata,
+      metadata: {
+        ...rawResult.metadata,
+        'aiClassification': classification.toJson(),
+      },
       multiResults: rawResult.multiResults,
     );
   }
@@ -184,13 +195,14 @@ class UniversalScanEngine {
       boundingBox: bbox,
       corners: corners.toList(),
       imageSize: imgSize,
+      documentCategory: 'documentPage',
       fields: {
         'Document Scanner Status': 'Document Edge Bounds Detected ✓',
         'Perspective Transform': 'Quadrilateral Perspective Corrected ✓',
         'Image Dimensions': '${width.toInt()} x ${height.toInt()} px',
         'Crop Bounds':
             'L:${bbox.left.toInt()} T:${bbox.top.toInt()} W:${bbox.width.toInt()} H:${bbox.height.toInt()}',
-        'Filter Mode': 'Auto Shadow Removal & Paper Whitening Enabled ✓',
+        'Filter Mode': 'Auto Shadow Removal & Whitening Enabled ✓',
         'Export Option': 'PDF Export Ready ✓',
       },
       metadata: {
@@ -230,7 +242,6 @@ class UniversalScanEngine {
                 : 'BARCODE';
     final typeStr = _determineBarcodeValueType(rawValue);
 
-    // Multi-code parsing support if payload contains delimiter
     List<String> detectedCodes = [rawValue];
     if (rawValue.contains('\n---\n') || rawValue.contains(';;;')) {
       detectedCodes = rawValue
@@ -432,7 +443,6 @@ class UniversalScanEngine {
         break;
       case ScanMode.ocr:
       default:
-        // Smart Receipt vs Business Card vs Invoice vs Document OCR dispatching
         final upperText = rawText.toUpperCase();
         if (upperText.contains('INVOICE') || upperText.contains('BILL NO')) {
           result = InvoiceParser.parse(rawText);
