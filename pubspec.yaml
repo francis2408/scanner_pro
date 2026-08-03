@@ -1,5 +1,5 @@
 name: scannerpro
-description: "Universal Flutter Scanner Pro SDK (francis2408/scanner_pro) - Enterprise scanning SDK with offline OCR, ID parsers, PDF generation, compression, watermark, encryption, digital signature, and AI document classification."
+description: "Universal Flutter scanning SDK with 16 Vision AI modes, offline OCR, MICR/MRZ/VIN parsers, adaptive FPS, PDF export, and AI document classification."
 repository: https://github.com/francis2408/scanner_pro
 homepage: https://github.com/francis2408/scanner_pro
 
