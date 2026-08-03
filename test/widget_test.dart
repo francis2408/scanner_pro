@@ -30,6 +30,11 @@ void main() {
       enableVin: false,
       enableOcr: false,
       enableFace: false,
+      enableDocument: false,
+      enableInvoice: false,
+      enableReceipt: false,
+      enableBusinessCard: false,
+      enableMultiCode: false,
     );
     expect(aadhaarOnly.activeEnabledModes, [ScanMode.aadhaar]);
 

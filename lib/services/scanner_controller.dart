@@ -35,6 +35,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Optional callback invoked when internal performance telemetry updates.
   final Function(ScannerStats stats)? onStatsUpdated;
 
+  /// Optional callback invoked on each raw live camera image frame for custom ML AI models.
+  final Function(cam.CameraImage frame)? onFrame;
+
   /// Internal scan engine executing ML Kit vision models.
   final UniversalScanEngine _scanEngine;
 
@@ -57,6 +60,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
   final StreamController<ScannerStats> _statsController =
       StreamController<ScannerStats>.broadcast();
+
+  final StreamController<cam.CameraImage> _frameStreamController =
+      StreamController<cam.CameraImage>.broadcast();
 
   bool _isAnalyzingEvent = false;
   bool _isProcessingLiveFrame = false;
@@ -99,6 +105,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     this.onResultDetected,
     this.onLowLightDetected,
     this.onStatsUpdated,
+    this.onFrame,
     UniversalScanEngine? scanEngine,
     ImagePicker? imagePicker,
   })  : _selectedMode = initialMode,
@@ -143,6 +150,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Stream emitting real-time performance telemetry.
   Stream<ScannerStats> get onStats => _statsController.stream;
+
+  /// Stream emitting raw live camera image frames for custom ML AI pipelines.
+  Stream<cam.CameraImage> get onFrameStream => _frameStreamController.stream;
 
   /// Current internal telemetry snapshot.
   ScannerStats get stats => _stats;
@@ -278,6 +288,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
     try {
       _cameraController!.startImageStream((cam.CameraImage image) async {
+        if (!_frameStreamController.isClosed) {
+          _frameStreamController.add(image);
+        }
+        onFrame?.call(image);
+
         if (_isPaused || _isProcessingLiveFrame || _isAnalyzingEvent) return;
 
         final now = DateTime.now();
@@ -773,6 +788,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     _scanEventController.close();
     _lowLightController.close();
     _statsController.close();
+    _frameStreamController.close();
     _cameraController?.dispose();
     _scanEngine.dispose();
     super.dispose();

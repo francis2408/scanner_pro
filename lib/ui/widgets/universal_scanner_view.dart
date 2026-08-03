@@ -63,6 +63,21 @@ class UniversalScannerView extends StatefulWidget {
   /// Whether Face Detection mode is enabled.
   final bool enableFace;
 
+  /// Whether Document Scanner mode is enabled.
+  final bool enableDocument;
+
+  /// Whether Invoice OCR mode is enabled.
+  final bool enableInvoice;
+
+  /// Whether Receipt OCR mode is enabled.
+  final bool enableReceipt;
+
+  /// Whether Business Card mode is enabled.
+  final bool enableBusinessCard;
+
+  /// Whether Multi-Code scanning mode is enabled.
+  final bool enableMultiCode;
+
   /// Optional theme configuration for customizing UI design and colors.
   final ScannerUiTheme? theme;
 
@@ -112,6 +127,11 @@ class UniversalScannerView extends StatefulWidget {
     this.enableVin = true,
     this.enableOcr = true,
     this.enableFace = true,
+    this.enableDocument = true,
+    this.enableInvoice = true,
+    this.enableReceipt = true,
+    this.enableBusinessCard = true,
+    this.enableMultiCode = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -142,6 +162,11 @@ class UniversalScannerView extends StatefulWidget {
     this.enableVin = true,
     this.enableOcr = true,
     this.enableFace = true,
+    this.enableDocument = true,
+    this.enableInvoice = true,
+    this.enableReceipt = true,
+    this.enableBusinessCard = true,
+    this.enableMultiCode = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -201,6 +226,11 @@ class UniversalScannerView extends StatefulWidget {
     if (enableVin) modes.add(ScanMode.vin);
     if (enableOcr) modes.add(ScanMode.ocr);
     if (enableFace) modes.add(ScanMode.face);
+    if (enableDocument) modes.add(ScanMode.document);
+    if (enableInvoice) modes.add(ScanMode.invoice);
+    if (enableReceipt) modes.add(ScanMode.receipt);
+    if (enableBusinessCard) modes.add(ScanMode.businessCard);
+    if (enableMultiCode) modes.add(ScanMode.multiCode);
 
     return modes.isEmpty ? ScanMode.values : List.unmodifiable(modes);
   }

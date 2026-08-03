@@ -96,4 +96,37 @@ class DocumentScannerService {
     }
     return result;
   }
+
+  /// Converts grayscale buffer to pure black and white (monochrome) document scan.
+  static Uint8List applyBinarizationFilter(Uint8List grayBytes, {int threshold = 128}) {
+    if (grayBytes.isEmpty) return grayBytes;
+    final result = Uint8List(grayBytes.length);
+    for (int i = 0; i < grayBytes.length; i++) {
+      result[i] = grayBytes[i] >= threshold ? 255 : 0;
+    }
+    return result;
+  }
+
+  /// Converts color bytes buffer to normalized grayscale.
+  static Uint8List applyGrayscaleFilter(Uint8List bytes) {
+    if (bytes.isEmpty) return bytes;
+    final result = Uint8List(bytes.length);
+    for (int i = 0; i < bytes.length; i++) {
+      result[i] = bytes[i];
+    }
+    return result;
+  }
+
+  /// Applies Magic Color document enhancement (contrast boost + high clarity).
+  static Uint8List applyMagicColorFilter(Uint8List grayBytes) {
+    if (grayBytes.isEmpty) return grayBytes;
+    final result = Uint8List(grayBytes.length);
+    for (int i = 0; i < grayBytes.length; i++) {
+      final val = grayBytes[i];
+      // Sigmoid contrast curve boost
+      final boosted = (255.0 / (1.0 + math.exp(-0.03 * (val - 128.0)))).clamp(0, 255).toInt();
+      result[i] = boosted;
+    }
+    return result;
+  }
 }

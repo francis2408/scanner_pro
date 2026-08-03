@@ -8,8 +8,13 @@ class PdfExportUtil {
   static Uint8List exportResultsToPdf({
     required List<ScanResult> results,
     String title = 'ScannerPro Scanned Document Export',
+    String author = 'Universal Scanner Pro SDK',
+    bool isLandscape = false,
+    bool includeMetadata = true,
   }) {
     final buffer = StringBuffer();
+    final pageWidth = isLandscape ? 792 : 612;
+    final pageHeight = isLandscape ? 612 : 792;
 
     // Generate valid minimalist PDF structure string
     buffer.writeln('%PDF-1.4');
@@ -24,26 +29,36 @@ class PdfExportUtil {
     final contentStream = StringBuffer();
     contentStream.writeln('BT');
     contentStream.writeln('/F1 20 Tf');
-    contentStream.writeln('50 750 Td');
+    contentStream.writeln('50 ${pageHeight - 50} Td');
     contentStream.writeln('(${_escapePdfText(title)}) Tj');
     contentStream.writeln('0 -30 Td');
     contentStream.writeln('/F1 12 Tf');
     contentStream.writeln('(Exported on: ${DateTime.now().toIso8601String()}) Tj');
+    contentStream.writeln('0 -20 Td');
+    contentStream.writeln('(Generator: ${_escapePdfText(author)}) Tj');
     contentStream.writeln('0 -25 Td');
     contentStream.writeln('(Total Items Scanned: ${results.length}) Tj');
     contentStream.writeln('0 -30 Td');
 
-    for (int i = 0; i < results.length && i < 15; i++) {
+    for (int i = 0; i < results.length && i < 20; i++) {
       final res = results[i];
-      contentStream.writeln('(${i + 1}. [${res.mode.name.toUpperCase()}] ${_escapePdfText(res.rawValue.replaceAll('\n', ' '))}) Tj');
+      final lineText = '${i + 1}. [${res.mode.name.toUpperCase()}] ${_escapePdfText(res.rawValue.replaceAll('\n', ' '))}';
+      final truncated = lineText.length > 75 ? '${lineText.substring(0, 72)}...' : lineText;
+      contentStream.writeln('($truncated) Tj');
       contentStream.writeln('0 -18 Td');
+
+      if (includeMetadata && res.fields.isNotEmpty) {
+        final sampleField = res.fields.entries.first;
+        contentStream.writeln('   (${_escapePdfText(sampleField.key)}: ${_escapePdfText(sampleField.value)}) Tj');
+        contentStream.writeln('0 -15 Td');
+      }
     }
     contentStream.writeln('ET');
 
     final streamBytes = utf8.encode(contentStream.toString());
 
     buffer.writeln('3 0 obj');
-    buffer.writeln('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>');
+    buffer.writeln('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $pageWidth $pageHeight] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>');
     buffer.writeln('endobj');
 
     buffer.writeln('4 0 obj');

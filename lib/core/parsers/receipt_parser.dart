@@ -78,7 +78,7 @@ class ReceiptParser {
     };
 
     return ScanResult(
-      mode: ScanMode.ocr,
+      mode: ScanMode.receipt,
       rawValue: rawText,
       isValid: totalAmount != 'Not Found' || lines.length >= 2,
       confidence: 0.96,

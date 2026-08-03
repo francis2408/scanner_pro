@@ -31,6 +31,21 @@ enum ScanMode {
 
   /// Face detection & landmark analysis mode.
   face,
+
+  /// Auto Document Edge Detection, Quad Cropping & Perspective Correction mode.
+  document,
+
+  /// Invoice and Bill OCR text recognition parser.
+  invoice,
+
+  /// Store Receipt OCR text recognition parser.
+  receipt,
+
+  /// Business Card Contact OCR parser.
+  businessCard,
+
+  /// Multi-Code simultaneous QR and 1D/2D Barcode scanner mode.
+  multiCode,
 }
 
 /// Extension methods for [ScanMode] providing UI metadata.
@@ -58,6 +73,16 @@ extension ScanModeExtension on ScanMode {
         return 'Text OCR';
       case ScanMode.face:
         return 'Face Detection';
+      case ScanMode.document:
+        return 'Document Scanner';
+      case ScanMode.invoice:
+        return 'Invoice OCR';
+      case ScanMode.receipt:
+        return 'Receipt OCR';
+      case ScanMode.businessCard:
+        return 'Business Card';
+      case ScanMode.multiCode:
+        return 'Multi-Code';
     }
   }
 
@@ -84,6 +109,16 @@ extension ScanModeExtension on ScanMode {
         return 'On-device text block & line recognition';
       case ScanMode.face:
         return 'Face mesh landmarks, head pose & liveness';
+      case ScanMode.document:
+        return 'Auto edge detection, perspective crop & PDF';
+      case ScanMode.invoice:
+        return 'Bills, tax invoices, totals, vendor & items';
+      case ScanMode.receipt:
+        return 'Store receipts, totals, tax & item lists';
+      case ScanMode.businessCard:
+        return 'Name, title, company, email, phone & web';
+      case ScanMode.multiCode:
+        return 'Simultaneous multi-QR and barcode pass';
     }
   }
 
@@ -110,6 +145,16 @@ extension ScanModeExtension on ScanMode {
         return Icons.text_snippet_rounded;
       case ScanMode.face:
         return Icons.face_retouching_natural_rounded;
+      case ScanMode.document:
+        return Icons.crop_free_rounded;
+      case ScanMode.invoice:
+        return Icons.receipt_long_rounded;
+      case ScanMode.receipt:
+        return Icons.receipt_rounded;
+      case ScanMode.businessCard:
+        return Icons.contact_page_rounded;
+      case ScanMode.multiCode:
+        return Icons.filter_center_focus_rounded;
     }
   }
 
@@ -136,6 +181,16 @@ extension ScanModeExtension on ScanMode {
         return 'Point camera at any printed or clear text';
       case ScanMode.face:
         return 'Position face clearly inside oval outline';
+      case ScanMode.document:
+        return 'Align document page boundaries within frame';
+      case ScanMode.invoice:
+        return 'Position bill or invoice inside guide';
+      case ScanMode.receipt:
+        return 'Center receipt text clearly within frame';
+      case ScanMode.businessCard:
+        return 'Center business card front inside guide';
+      case ScanMode.multiCode:
+        return 'Hold camera steady over multiple codes';
     }
   }
 
@@ -153,11 +208,18 @@ extension ScanModeExtension on ScanMode {
       case ScanMode.aadhaar:
       case ScanMode.pan:
       case ScanMode.drivingLicense:
+      case ScanMode.businessCard:
         return 1.58;
       case ScanMode.vin:
         return 3.2;
       case ScanMode.ocr:
+      case ScanMode.invoice:
+      case ScanMode.receipt:
         return 1.5;
+      case ScanMode.document:
+        return 1.33;
+      case ScanMode.multiCode:
+        return 1.2;
       case ScanMode.face:
         return 0.85;
     }
@@ -169,16 +231,21 @@ extension ScanModeExtension on ScanMode {
       case ScanMode.qr:
       case ScanMode.barcode:
       case ScanMode.pdf417:
+      case ScanMode.multiCode:
         return 'Barcodes';
       case ScanMode.passport:
       case ScanMode.aadhaar:
       case ScanMode.pan:
       case ScanMode.drivingLicense:
-        return 'ID Documents';
+      case ScanMode.businessCard:
+        return 'ID & Cards';
       case ScanMode.vin:
         return 'Automotive';
       case ScanMode.ocr:
       case ScanMode.face:
+      case ScanMode.document:
+      case ScanMode.invoice:
+      case ScanMode.receipt:
         return 'Vision AI';
     }
   }

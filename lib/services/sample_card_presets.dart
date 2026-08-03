@@ -5,6 +5,9 @@ import '../core/parsers/aadhaar_parser.dart';
 import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/driving_license_parser.dart';
 import '../core/parsers/vin_parser.dart';
+import '../core/parsers/invoice_parser.dart';
+import '../core/parsers/receipt_parser.dart';
+import '../core/parsers/business_card_parser.dart';
 
 /// Container class for preset sample card scan items.
 class SampleCardPresets {
@@ -137,18 +140,9 @@ class SampleCardPresets {
       case ScanMode.ocr:
         return [
           SampleItem(
-            label: 'Sample Retail Invoice',
-            payload: r'''UNIVERSAL SCANNER STORE
-Invoice #: INV-2026-9821
-Date: 2026-08-01
---------------------------------
-Item 1: Universal Scanning SDK  $149.00
-Item 2: Android & iOS License    $99.00
---------------------------------
-SUBTOTAL:                      $248.00
-TAX (8%):                       $19.84
-TOTAL DUE:                     $267.84
-Thank you for choosing Universal Scanner!''',
+            label: 'Printed Document Text Block',
+            payload:
+                'SCANNER PRO ULTIMATE SDK\nHigh Performance On-Device Computer Vision\nReal-time ML Kit OCR Engine with Sub-Millisecond Latency\nSupports iOS, Android, macOS and Web',
             mode: ScanMode.ocr,
           ),
         ];
@@ -159,6 +153,78 @@ Thank you for choosing Universal Scanner!''',
             label: 'Sample Face Analysis Preset',
             payload: 'FACE_SIMULATION_METRICS',
             mode: ScanMode.face,
+          ),
+        ];
+
+      case ScanMode.document:
+        return [
+          SampleItem(
+            label: 'Document Page Scanner',
+            payload: 'DOCUMENT_PAGE_QUAD_BOUNDS',
+            mode: ScanMode.document,
+          ),
+        ];
+
+      case ScanMode.invoice:
+        return [
+          SampleItem(
+            label: 'Tax Invoice OCR',
+            payload: r'''GLOBAL SUPPLIERS CORP
+INVOICE NO: INV-2026-8841
+DATE: 2026-08-01  DUE: 2026-08-30
+GSTIN: 27AAAAA0000A1Z5
+--------------------------------
+Item 1: Server Hardware Rack   $1,250.00
+Item 2: Fiber Optics Adapter     $450.00
+--------------------------------
+SUBTOTAL:                      $1,700.00
+TAX (18%):                       $306.00
+TOTAL AMOUNT:                  $2,006.00''',
+            mode: ScanMode.invoice,
+          ),
+        ];
+
+      case ScanMode.receipt:
+        return [
+          SampleItem(
+            label: 'Store Receipt OCR',
+            payload: r'''SUPERMARKET EXPRESS
+Receipt #: 45981
+Date: Aug 02, 2026
+--------------------------------
+Fresh Milk 1L            $3.50
+Whole Wheat Bread        $2.80
+Organic Coffee Beans    $14.99
+--------------------------------
+SUBTOTAL:               $21.29
+TAX:                     $1.70
+TOTAL:                  $22.99
+Thank you for shopping!''',
+            mode: ScanMode.receipt,
+          ),
+        ];
+
+      case ScanMode.businessCard:
+        return [
+          SampleItem(
+            label: 'Executive Business Card',
+            payload: '''BENJAMIN FRANKLIN
+Chief Executive Officer
+ALEXANDRIA TECH SOLUTIONS INC.
+Tel: +1 (800) 555-0199
+Email: benjamin@alexandria.tech
+Web: www.alexandria.tech
+123 Innovation Way, Suite 400, Austin TX 78701''',
+            mode: ScanMode.businessCard,
+          ),
+        ];
+
+      case ScanMode.multiCode:
+        return [
+          SampleItem(
+            label: 'Multi-Code Batch Scanner',
+            payload: '8901030748194\n---\nhttps://flutter.dev\n---\nWIFI:S:OfficeGuest;P:guest123;;',
+            mode: ScanMode.multiCode,
           ),
         ];
     }
@@ -224,6 +290,15 @@ Thank you for choosing Universal Scanner!''',
       case ScanMode.vin:
         return VinParser.parse(sample.payload);
 
+      case ScanMode.invoice:
+        return InvoiceParser.parse(sample.payload);
+
+      case ScanMode.receipt:
+        return ReceiptParser.parse(sample.payload);
+
+      case ScanMode.businessCard:
+        return BusinessCardParser.parse(sample.payload);
+
       case ScanMode.ocr:
         return ScanResult(
           mode: ScanMode.ocr,
@@ -235,6 +310,40 @@ Thank you for choosing Universal Scanner!''',
             'Extracted Lines':
                 '${sample.payload.split('\n').length} Lines Recognized',
             'Full Text': sample.payload,
+          },
+        );
+
+      case ScanMode.document:
+        return ScanResult(
+          mode: ScanMode.document,
+          rawValue: 'Scanned Document Page',
+          isValid: true,
+          confidence: 0.99,
+          fields: {
+            'Document Edge Bounds': 'Detected Quad Corner Box',
+            'Perspective Matrix': 'Corrected 4-Corner Rect',
+            'Filter State': 'Shadow Removal Whitened Paper',
+          },
+        );
+
+      case ScanMode.multiCode:
+        return ScanResult(
+          mode: ScanMode.multiCode,
+          rawValue: sample.payload,
+          isValid: true,
+          confidence: 0.99,
+          fields: {
+            'Multi-Code Detection': '3 Codes Found',
+            'Code #1': '8901030748194',
+            'Code #2': 'https://flutter.dev',
+            'Code #3': 'WIFI:S:OfficeGuest;P:guest123;;',
+          },
+          metadata: {
+            'multiCodes': [
+              '8901030748194',
+              'https://flutter.dev',
+              'WIFI:S:OfficeGuest;P:guest123;;'
+            ]
           },
         );
 

@@ -1,11 +1,14 @@
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scannerpro/core/models/scanner_mode.dart';
 import 'package:scannerpro/core/parsers/aadhaar_parser.dart';
 import 'package:scannerpro/core/parsers/driving_license_parser.dart';
 import 'package:scannerpro/core/parsers/gs1_barcode_parser.dart';
+import 'package:scannerpro/core/parsers/invoice_parser.dart';
 import 'package:scannerpro/core/parsers/mrz_passport_parser.dart';
 import 'package:scannerpro/core/parsers/pan_card_parser.dart';
 import 'package:scannerpro/core/parsers/vin_parser.dart';
+import 'package:scannerpro/core/services/document_scanner_service.dart';
 import 'package:scannerpro/services/sample_card_presets.dart';
 
 void main() {
@@ -61,6 +64,40 @@ void main() {
       expect(result.fields['Holder Category'], equals('Individual / Person'));
     });
 
+    test('Invoice & Bill AI OCR Parser Test', () {
+      const sampleInvoice = '''GLOBAL SUPPLIERS CORP
+INVOICE NO: INV-2026-8841
+DATE: 2026-08-01  DUE: 2026-08-30
+GSTIN: 27AAAAA0000A1Z5
+--------------------------------
+Item 1: Server Hardware Rack   \$1,250.00
+Item 2: Fiber Optics Adapter     \$450.00
+--------------------------------
+SUBTOTAL:                      \$1,700.00
+TAX (18%):                       \$306.00
+TOTAL AMOUNT:                  \$2,006.00''';
+      final result = InvoiceParser.parse(sampleInvoice);
+
+      expect(result.isValid, isTrue);
+      expect(result.fields['Vendor / Biller'], equals('GLOBAL SUPPLIERS CORP'));
+      expect(result.fields['Invoice Number'], equals('INV-2026-8841'));
+      expect(result.fields['Total Amount'], equals('\$2,006.00'));
+      expect(result.fields['Tax / VAT / GST'], equals('\$306.00'));
+    });
+
+    test('DocumentScannerService Advanced Image Filters Test', () {
+      final sampleBytes = Uint8List.fromList([50, 100, 150, 200, 250]);
+      final shadowResult = DocumentScannerService.applyShadowRemovalFilter(sampleBytes);
+      expect(shadowResult.length, equals(5));
+
+      final binarized = DocumentScannerService.applyBinarizationFilter(sampleBytes, threshold: 128);
+      expect(binarized[0], equals(0));
+      expect(binarized[4], equals(255));
+
+      final magicColor = DocumentScannerService.applyMagicColorFilter(sampleBytes);
+      expect(magicColor.length, equals(5));
+    });
+
     test('AAMVA Driving License PDF417 Parser Test', () {
       const aamvaPayload =
           '@\n\nANSI 636000080002DL00390207DL\nDAQD1234567\nDCSDOE\nDACJOHN\nDBB19880415\n';
@@ -114,7 +151,7 @@ void main() {
       expect(result3.fields['Quantity'], equals('150'));
     });
 
-    test('SampleCardPresets cover all 10 scan modes', () {
+    test('SampleCardPresets cover all 15 scan modes', () {
       for (final mode in ScanMode.values) {
         final samples = SampleCardPresets.getSamplesForMode(mode);
         expect(samples, isNotEmpty);

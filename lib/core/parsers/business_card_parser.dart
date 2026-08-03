@@ -150,7 +150,7 @@ class BusinessCardParser {
     };
 
     return ScanResult(
-      mode: ScanMode.ocr,
+      mode: ScanMode.businessCard,
       rawValue: rawText,
       isValid: email != 'N/A' || phone != 'N/A' || lines.length >= 2,
       confidence: 0.97,

@@ -7,6 +7,7 @@ export 'core/parsers/aadhaar_parser.dart';
 export 'core/parsers/business_card_parser.dart';
 export 'core/parsers/driving_license_parser.dart';
 export 'core/parsers/gs1_barcode_parser.dart';
+export 'core/parsers/invoice_parser.dart';
 export 'core/parsers/mrz_passport_parser.dart';
 export 'core/parsers/pan_card_parser.dart';
 export 'core/parsers/receipt_parser.dart';

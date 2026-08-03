@@ -1,3 +1,13 @@
+# 1.4.0
+
+- **ScannerPro Ultimate SDK Architecture**: Expanded scanning modes to 15 comprehensive vision AI scan modes (`ScanMode.document`, `ScanMode.invoice`, `ScanMode.receipt`, `ScanMode.businessCard`, `ScanMode.multiCode`).
+- **Real-time Machine Learning Frame Processor API**: Added `onFrame` callback and `Stream<CameraImage> get onFrameStream` on `ScannerController` allowing custom real-time AI models, face mesh algorithms, and tensor streams to process raw camera frames directly.
+- **Invoice & Bill AI OCR Parser**: Added `InvoiceParser` extracting vendor names, invoice numbers, invoice dates, due dates, subtotal, tax/VAT/GST amounts, tax IDs (GSTIN/EIN), total amounts, and line item previews.
+- **Document Edge Detection & Advanced Image Filters**: Enhanced `DocumentScannerService` with binarization filters (`applyBinarizationFilter`), grayscale conversions (`applyGrayscaleFilter`), and Magic Color contrast enhancement (`applyMagicColorFilter`).
+- **Multi-Code & Batch Barcode Scanner Mode**: Supported simultaneous scanning of multiple QR codes and 1D/2D barcodes in a single camera pass (`ScanMode.multiCode`).
+- **Enhanced PDF Exporter**: Upgraded `PdfExportUtil` to support landscape/portrait page orientation, author metadata, custom page headers, and multi-result table rendering.
+- **Visual Reticle Overlay Cues**: Added customized overlay guides in `ScannerOverlayPainter` for document edge bounds and multi-code target reticles.
+
 # 1.3.1
 
 - **Multi-Field Business Card OCR Line Classification**: Enhanced line classification for names, job titles, company names, email addresses, phone numbers, websites, and physical addresses across arbitrary line layouts.

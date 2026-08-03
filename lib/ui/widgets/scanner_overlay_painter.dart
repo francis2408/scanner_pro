@@ -257,6 +257,39 @@ class ScannerOverlayPainter extends CustomPainter {
         14,
         guidePaint,
       );
+    } else if (scanMode == ScanMode.document) {
+      final docPaint = Paint()
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      final margin = 16.0;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            rectLeft + margin,
+            rectTop + margin,
+            rectWidth - (margin * 2),
+            rectHeight - (margin * 2),
+          ),
+          const Radius.circular(12),
+        ),
+        docPaint,
+      );
+    } else if (scanMode == ScanMode.multiCode) {
+      final multiPaint = Paint()
+        ..color = Colors.lightGreenAccent.withValues(alpha: 0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(
+        Offset(rectLeft + rectWidth * 0.3, rectTop + rectHeight * 0.35),
+        24,
+        multiPaint,
+      );
+      canvas.drawCircle(
+        Offset(rectLeft + rectWidth * 0.7, rectTop + rectHeight * 0.65),
+        24,
+        multiPaint,
+      );
     }
   }
 
