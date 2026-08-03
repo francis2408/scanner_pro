@@ -1,3 +1,10 @@
+# 1.1.0
+
+- ML Kit Dependency Streamlining: Refactored vision scanning engine to rely exclusively on `google_mlkit_commons`, removing individual sub-package dependencies.
+- Sub-Millisecond Vision Performance: Replaced dynamic regular expressions with static compiled constants and pre-cached camera byte buffers, delivering sub-millisecond parsing latency (down to 13 µs per operation) and up to ~76,900 ops/sec throughput.
+- Enriched Document Metadata & Accuracy: Added ISO 3166-1 country name resolution, composite ICAO 7-3-1 checks, age calculations, Aadhaar Verhoeff validation, PAN taxpayer category breakdowns, expanded WMI manufacturer databases (50+ global vehicle makes), and Face Liveness verification.
+- Performance Benchmark Test Suite: Added comprehensive unit & throughput benchmark tests (`test/performance_benchmark_test.dart`).
+
 # 1.0.9
 
 - Standalone Scanning Engine & Custom Screen Design: Added `ScannerController` and `ScannerCameraPreview` widgets to decouple camera lifecycle, ML vision scanning, and stream processing from pre-packaged UI layouts.
