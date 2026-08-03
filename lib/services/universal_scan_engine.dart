@@ -119,6 +119,10 @@ class UniversalScanEngine {
       confidence: rawResult.confidence,
       timestamp: rawResult.timestamp,
       imagePath: rawResult.imagePath,
+      rawBytes: rawResult.rawBytes,
+      format: rawResult.format ?? rawResult.metadata['format'] as String?,
+      roi: rawResult.roi,
+      enhancementsApplied: rawResult.enhancementsApplied,
       corners: corners,
       boundingBox: bbox,
       imageSize: imgSize,
@@ -168,6 +172,7 @@ class UniversalScanEngine {
       isValid: rawValue.isNotEmpty,
       confidence: 0.99,
       imagePath: imagePath,
+      format: formatStr,
       fields: fields,
       metadata: {'format': formatStr, 'type': typeStr},
     );

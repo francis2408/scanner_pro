@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'scanner_mode.dart';
 
@@ -24,6 +25,21 @@ class ScanResult {
   /// Optional file path to captured camera frame image.
   final String? imagePath;
 
+  /// Optional raw byte buffer of the scanned image frame.
+  final Uint8List? rawBytes;
+
+  /// Detected barcode format or document type specification.
+  final String? format;
+
+  /// Region of Interest (ROI) sub-rectangle cutout in frame pixel coordinates.
+  final Rect? roi;
+
+  /// List of image enhancement filters applied during isolate preprocessing.
+  final List<String> enhancementsApplied;
+
+  /// Whether this result was identified as a duplicate during session caching.
+  final bool isDuplicate;
+
   /// Detected barcode or document corner points in frame pixel coordinates.
   final List<Offset>? corners;
 
@@ -48,13 +64,60 @@ class ScanResult {
     this.confidence = 1.0,
     DateTime? timestamp,
     this.imagePath,
+    this.rawBytes,
+    this.format,
+    this.roi,
+    List<String>? enhancementsApplied,
+    this.isDuplicate = false,
     this.corners,
     this.boundingBox,
     this.imageSize,
     this.scanDuration,
     Map<String, dynamic>? metadata,
-  }) : timestamp = timestamp ?? DateTime.now(),
-       metadata = metadata ?? {};
+  })  : timestamp = timestamp ?? DateTime.now(),
+        enhancementsApplied = enhancementsApplied ?? const [],
+        metadata = metadata ?? {};
+
+  /// Creates a copy of [ScanResult] with updated fields.
+  ScanResult copyWith({
+    ScanMode? mode,
+    String? rawValue,
+    Map<String, String>? fields,
+    bool? isValid,
+    double? confidence,
+    DateTime? timestamp,
+    String? imagePath,
+    Uint8List? rawBytes,
+    String? format,
+    Rect? roi,
+    List<String>? enhancementsApplied,
+    bool? isDuplicate,
+    List<Offset>? corners,
+    Rect? boundingBox,
+    Size? imageSize,
+    Duration? scanDuration,
+    Map<String, dynamic>? metadata,
+  }) {
+    return ScanResult(
+      mode: mode ?? this.mode,
+      rawValue: rawValue ?? this.rawValue,
+      fields: fields ?? this.fields,
+      isValid: isValid ?? this.isValid,
+      confidence: confidence ?? this.confidence,
+      timestamp: timestamp ?? this.timestamp,
+      imagePath: imagePath ?? this.imagePath,
+      rawBytes: rawBytes ?? this.rawBytes,
+      format: format ?? this.format,
+      roi: roi ?? this.roi,
+      enhancementsApplied: enhancementsApplied ?? this.enhancementsApplied,
+      isDuplicate: isDuplicate ?? this.isDuplicate,
+      corners: corners ?? this.corners,
+      boundingBox: boundingBox ?? this.boundingBox,
+      imageSize: imageSize ?? this.imageSize,
+      scanDuration: scanDuration ?? this.scanDuration,
+      metadata: metadata ?? this.metadata,
+    );
+  }
 
   /// Serializes the scan result to a JSON-compatible map.
   Map<String, dynamic> toJson() {
@@ -67,6 +130,9 @@ class ScanResult {
       'confidence': confidence,
       'timestamp': timestamp.toIso8601String(),
       'imagePath': imagePath,
+      'format': format ?? metadata['format'],
+      'isDuplicate': isDuplicate,
+      'enhancementsApplied': enhancementsApplied,
       'corners': corners
           ?.map((c) => {'x': c.dx, 'y': c.dy})
           .toList(),
@@ -76,6 +142,14 @@ class ScanResult {
               'top': boundingBox!.top,
               'width': boundingBox!.width,
               'height': boundingBox!.height,
+            }
+          : null,
+      'roi': roi != null
+          ? {
+              'left': roi!.left,
+              'top': roi!.top,
+              'width': roi!.width,
+              'height': roi!.height,
             }
           : null,
       'imageSize': imageSize != null
@@ -99,7 +173,8 @@ class ScanResult {
 
   @override
   String toString() {
-    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms)';
+    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, format: $format, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms)';
   }
 }
+
 

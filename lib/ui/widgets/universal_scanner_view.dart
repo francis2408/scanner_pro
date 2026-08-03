@@ -296,6 +296,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                     AnimatedBuilder(
                       animation: _laserAnimController,
                       builder: (context, child) {
+                        final lastRes = _controller.lastResult;
                         return CustomPaint(
                           painter: ScannerOverlayPainter(
                             scanMode: currentMode,
@@ -303,6 +304,8 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                             accentColor: _getCategoryColor(currentMode.category),
                             theme: uiTheme,
                             focusPoint: _controller.lastTapFocusPoint,
+                            isDetected: lastRes != null && lastRes.isValid,
+                            detectedBoundingBox: lastRes?.boundingBox,
                           ),
                         );
                       },

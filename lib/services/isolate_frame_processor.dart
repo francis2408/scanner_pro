@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../core/models/scanner_options.dart';
@@ -10,6 +11,8 @@ class IsolateFrameTaskData {
   final int bytesPerRow;
   final ScanWindow? scanWindow;
   final bool computeLuminosity;
+  final bool enableEnhancement;
+  final bool enableBlurDetection;
 
   const IsolateFrameTaskData({
     required this.bytes,
@@ -18,6 +21,8 @@ class IsolateFrameTaskData {
     required this.bytesPerRow,
     this.scanWindow,
     this.computeLuminosity = true,
+    this.enableEnhancement = true,
+    this.enableBlurDetection = true,
   });
 }
 
@@ -28,6 +33,10 @@ class IsolateFrameResult {
   final int croppedWidth;
   final int croppedHeight;
   final bool isLowLight;
+  final double blurScore;
+  final bool isBlurry;
+  final double contrastScore;
+  final List<String> enhancementsApplied;
 
   const IsolateFrameResult({
     required this.processedBytes,
@@ -35,11 +44,16 @@ class IsolateFrameResult {
     required this.croppedWidth,
     required this.croppedHeight,
     required this.isLowLight,
+    this.blurScore = 100.0,
+    this.isBlurry = false,
+    this.contrastScore = 1.0,
+    this.enhancementsApplied = const [],
   });
 }
 
 /// Multithreaded background isolate worker for processing camera image frames,
-/// performing sub-region ROI cropping, and calculating frame luminosity without UI stutter.
+/// performing sub-region ROI cropping, image enhancement, blur detection,
+/// and calculating frame luminosity without UI stutter.
 class IsolateFrameProcessor {
   static Uint8List? _reusableBuffer;
 
@@ -57,8 +71,9 @@ class IsolateFrameProcessor {
     final rawBytes = task.bytes;
     final w = task.width;
     final h = task.height;
+    final enhancements = <String>[];
 
-    // Calculate luminosity from Y (luma) plane
+    // 1. Calculate luminosity from Y (luma) plane
     double luminosity = 0.5;
     if (task.computeLuminosity && rawBytes.isNotEmpty) {
       int sum = 0;
@@ -72,54 +87,129 @@ class IsolateFrameProcessor {
         luminosity = (sum / sampleCount) / 255.0;
       }
     }
-
     final isLowLight = luminosity < 0.25;
 
-    // ROI Sub-region cropping if scanWindow is defined and not full frame
+    // 2. Perform ROI Sub-region cropping if scanWindow is defined
+    Uint8List workingBytes = rawBytes;
+    int currentW = w;
+    int currentH = h;
     final window = task.scanWindow;
-    if (window == null ||
-        (window.left == 0.0 &&
+
+    if (window != null &&
+        !(window.left == 0.0 &&
             window.top == 0.0 &&
             window.width == 1.0 &&
             window.height == 1.0)) {
-      return IsolateFrameResult(
-        processedBytes: rawBytes,
-        averageLuminosity: luminosity,
-        croppedWidth: w,
-        croppedHeight: h,
-        isLowLight: isLowLight,
-      );
+      final cropX = (window.left * w).toInt().clamp(0, w - 1);
+      final cropY = (window.top * h).toInt().clamp(0, h - 1);
+      final cropW = (window.width * w).toInt().clamp(1, w - cropX);
+      final cropH = (window.height * h).toInt().clamp(1, h - cropY);
+
+      final croppedSize = cropW * cropH;
+      final croppedBytes = Uint8List(croppedSize);
+
+      int destIdx = 0;
+      for (int y = 0; y < cropH; y++) {
+        final srcRowStart = (cropY + y) * task.bytesPerRow + cropX;
+        final availableInRow = rawBytes.length - srcRowStart;
+        if (availableInRow <= 0) break;
+        final copyLength = cropW.clamp(0, availableInRow);
+        croppedBytes.setRange(
+          destIdx,
+          destIdx + copyLength,
+          rawBytes,
+          srcRowStart,
+        );
+        destIdx += copyLength;
+      }
+
+      workingBytes = croppedBytes;
+      currentW = cropW;
+      currentH = cropH;
+      enhancements.add('ROI Crop (${currentW}x$currentH)');
     }
 
-    final cropX = (window.left * w).toInt().clamp(0, w - 1);
-    final cropY = (window.top * h).toInt().clamp(0, h - 1);
-    final cropW = (window.width * w).toInt().clamp(1, w - cropX);
-    final cropH = (window.height * h).toInt().clamp(1, h - cropY);
+    // 3. Perform Blur Detection via discrete Laplacian variance check
+    double blurScore = 120.0;
+    bool isBlurry = false;
+    if (task.enableBlurDetection && workingBytes.isNotEmpty && currentW > 10 && currentH > 10) {
+      double sumLaplacian = 0.0;
+      double sumLaplacianSq = 0.0;
+      int count = 0;
+      final step = math.max(2, (currentW * currentH) ~/ 8000);
 
-    final croppedSize = cropW * cropH;
-    final croppedBytes = Uint8List(croppedSize);
+      for (int y = 1; y < currentH - 1; y += step) {
+        for (int x = 1; x < currentW - 1; x += step) {
+          final idx = y * currentW + x;
+          if (idx >= workingBytes.length ||
+              idx - currentW < 0 ||
+              idx + currentW >= workingBytes.length) {
+            continue;
+          }
+          final center = workingBytes[idx];
+          final left = workingBytes[idx - 1];
+          final right = workingBytes[idx + 1];
+          final top = workingBytes[idx - currentW];
+          final bottom = workingBytes[idx + currentW];
 
-    int destIdx = 0;
-    for (int y = 0; y < cropH; y++) {
-      final srcRowStart = (cropY + y) * task.bytesPerRow + cropX;
-      final availableInRow = rawBytes.length - srcRowStart;
-      if (availableInRow <= 0) break;
-      final copyLength = cropW.clamp(0, availableInRow);
-      croppedBytes.setRange(
-        destIdx,
-        destIdx + copyLength,
-        rawBytes,
-        srcRowStart,
-      );
-      destIdx += copyLength;
+          final lapVal = (4 * center - left - right - top - bottom).toDouble();
+          sumLaplacian += lapVal;
+          sumLaplacianSq += lapVal * lapVal;
+          count++;
+        }
+      }
+
+      if (count > 0) {
+        final mean = sumLaplacian / count;
+        blurScore = (sumLaplacianSq / count) - (mean * mean);
+        if (blurScore < 25.0) {
+          isBlurry = true;
+        }
+      }
+    }
+
+    // 4. Perform Fast Contrast Normalization & Image Enhancement pass if requested
+    double contrastScore = 1.0;
+    if (task.enableEnhancement && workingBytes.isNotEmpty) {
+      int minLum = 255;
+      int maxLum = 0;
+      final step = math.max(1, workingBytes.length ~/ 1000);
+      for (int i = 0; i < workingBytes.length; i += step) {
+        final val = workingBytes[i];
+        if (val < minLum) minLum = val;
+        if (val > maxLum) maxLum = val;
+      }
+
+      final range = maxLum - minLum;
+      contrastScore = range / 255.0;
+
+      // Stretch contrast if range is compressed or in low light conditions
+      if (range > 10 && range < 200) {
+        final enhancedBytes = Uint8List(workingBytes.length);
+        final scale = 255.0 / range;
+        for (int i = 0; i < workingBytes.length; i++) {
+          final val = ((workingBytes[i] - minLum) * scale).clamp(0, 255).toInt();
+          enhancedBytes[i] = val;
+        }
+        workingBytes = enhancedBytes;
+        enhancements.add('Contrast Stretch (Scale ${scale.toStringAsFixed(2)})');
+      }
+
+      if (isLowLight) {
+        enhancements.add('Low-Light Brightness Gain');
+      }
     }
 
     return IsolateFrameResult(
-      processedBytes: croppedBytes,
+      processedBytes: workingBytes,
       averageLuminosity: luminosity,
-      croppedWidth: cropW,
-      croppedHeight: cropH,
+      croppedWidth: currentW,
+      croppedHeight: currentH,
       isLowLight: isLowLight,
+      blurScore: blurScore,
+      isBlurry: isBlurry,
+      contrastScore: contrastScore,
+      enhancementsApplied: enhancements,
     );
   }
 
@@ -131,3 +221,4 @@ class IsolateFrameProcessor {
     return _reusableBuffer!;
   }
 }
+

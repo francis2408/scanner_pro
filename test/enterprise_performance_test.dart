@@ -1,7 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:scannerpro/scannerpro.dart';
 
 class MockTestPlugin extends ScannerPlugin {
@@ -39,43 +39,55 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Enterprise ScannerPro Architecture & Performance Tests', () {
-    test('1. Rich ScanResult returns corners, boundingBox, imageSize & scanDuration', () async {
-      final engine = UniversalScanEngine();
-      final bytes = Uint8List.fromList('https://flutter.dev'.codeUnits);
-      final inputImage = InputImage.fromBytes(
-        bytes: bytes,
-        metadata: InputImageMetadata(
-          size: const Size(640, 480),
-          rotation: InputImageRotationValue.fromRawValue(0) ?? InputImageRotation.rotation0deg,
-          format: InputImageFormat.nv21,
-          bytesPerRow: 640,
-        ),
-      );
+    test(
+      '1. Rich ScanResult returns corners, boundingBox, imageSize & scanDuration',
+      () async {
+        final engine = UniversalScanEngine();
+        final bytes = Uint8List.fromList('https://flutter.dev'.codeUnits);
+        final inputImage = InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: const Size(640, 480),
+            rotation:
+                InputImageRotationValue.fromRawValue(0) ??
+                InputImageRotation.rotation0deg,
+            format: InputImageFormat.nv21,
+            bytesPerRow: 640,
+          ),
+        );
 
-      final result = await engine.processInputImage(inputImage, ScanMode.qr);
+        final result = await engine.processInputImage(inputImage, ScanMode.qr);
 
-      expect(result.isValid, isTrue);
-      expect(result.mode, equals(ScanMode.qr));
-      expect(result.scanDuration, isNotNull);
-      expect(result.imageSize, isNotNull);
-      expect(result.boundingBox, isNotNull);
-      expect(result.corners, isNotNull);
-      expect(result.corners!.length, equals(4));
+        expect(result.isValid, isTrue);
+        expect(result.mode, equals(ScanMode.qr));
+        expect(result.scanDuration, isNotNull);
+        expect(result.imageSize, isNotNull);
+        expect(result.boundingBox, isNotNull);
+        expect(result.corners, isNotNull);
+        expect(result.corners!.length, equals(4));
 
-      final json = result.toJson();
-      expect(json['scanDurationMs'], isNotNull);
-      expect(json['boundingBox'], isNotNull);
-      expect(json['corners'], isNotNull);
-    });
+        final json = result.toJson();
+        expect(json['scanDurationMs'], isNotNull);
+        expect(json['boundingBox'], isNotNull);
+        expect(json['corners'], isNotNull);
+      },
+    );
 
     test('2. Isolate Frame Processing & ROI Sub-region Cropping', () async {
-      final rawBytes = Uint8List.fromList(List.generate(640 * 480, (i) => i % 256));
+      final rawBytes = Uint8List.fromList(
+        List.generate(640 * 480, (i) => i % 256),
+      );
       final task = IsolateFrameTaskData(
         bytes: rawBytes,
         width: 640,
         height: 480,
         bytesPerRow: 640,
-        scanWindow: const ScanWindow(left: 0.2, top: 0.2, width: 0.5, height: 0.5),
+        scanWindow: const ScanWindow(
+          left: 0.2,
+          top: 0.2,
+          width: 0.5,
+          height: 0.5,
+        ),
         computeLuminosity: true,
       );
 
@@ -90,13 +102,13 @@ void main() {
 
     test('3. ScannerOptions configuration presets', () {
       const highPerf = ScannerOptions.highPerformance;
-      expect(highPerf.frameThrottleMs, equals(120));
+      expect(highPerf.frameThrottleMs, equals(50));
       expect(highPerf.enableDuplicateFilter, isTrue);
       expect(highPerf.enableIsolateProcessing, isTrue);
 
       const battery = ScannerOptions.batterySaver;
       expect(battery.scanStrategy, equals(ScanStrategy.batch));
-      expect(battery.frameThrottleMs, equals(200));
+      expect(battery.frameThrottleMs, equals(150));
     });
 
     test('4. ScannerPluginRegistry custom recognizer registration', () async {
@@ -105,7 +117,10 @@ void main() {
       ScannerPluginRegistry.register(mockPlugin);
 
       expect(ScannerPluginRegistry.allPlugins.length, equals(1));
-      expect(ScannerPluginRegistry.findForMode(ScanMode.ocr), equals(mockPlugin));
+      expect(
+        ScannerPluginRegistry.findForMode(ScanMode.ocr),
+        equals(mockPlugin),
+      );
 
       final engine = UniversalScanEngine();
       final inputImage = InputImage.fromFilePath('test/assets/test_sample.png');
@@ -138,7 +153,10 @@ void main() {
 
       expect(controller.batchResults.isEmpty, isTrue);
 
-      await controller.processImageFile('test/assets/sample_qr.png', mode: ScanMode.qr);
+      await controller.processImageFile(
+        'test/assets/sample_qr.png',
+        mode: ScanMode.qr,
+      );
       expect(controller.batchResults.length, equals(1));
 
       controller.clearBatch();

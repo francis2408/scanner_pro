@@ -23,6 +23,9 @@ class ScannerOverlayPainter extends CustomPainter {
   /// Whether a valid barcode or document frame was detected in current frame pass.
   final bool isDetected;
 
+  /// Detected target bounding box rectangle relative to screen coordinates.
+  final Rect? detectedBoundingBox;
+
   /// Constructs a new [ScannerOverlayPainter].
   ScannerOverlayPainter({
     required this.scanMode,
@@ -31,6 +34,7 @@ class ScannerOverlayPainter extends CustomPainter {
     this.theme,
     this.focusPoint,
     this.isDetected = false,
+    this.detectedBoundingBox,
   });
 
   @override
@@ -151,11 +155,31 @@ class ScannerOverlayPainter extends CustomPainter {
       );
     }
 
+    // Render Laser Scanline with Gradient Glow
     if (theme?.showLaserBeam ?? true) {
       final effectiveLaserColor = isDetected
           ? const Color(0xFF00E676)
           : (theme?.laserBeamColor ?? theme?.accentColor ?? accentColor);
       final beamY = rectTop + (rectHeight * animationValue);
+
+      final glowRect = Rect.fromLTWH(
+        rectLeft + 8,
+        beamY - 12,
+        rectWidth - 16,
+        24,
+      );
+      final glowPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            effectiveLaserColor.withValues(alpha: 0.0),
+            effectiveLaserColor.withValues(alpha: 0.25),
+            effectiveLaserColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(glowRect);
+      canvas.drawRect(glowRect, glowPaint);
+
       final beamPaint = Paint()
         ..color = effectiveLaserColor
         ..strokeWidth = 2.5
@@ -168,13 +192,26 @@ class ScannerOverlayPainter extends CustomPainter {
       );
     }
 
-    // Render tap-to-focus ring if present
+    // Render Detected Bounding Box Highlight
+    if (detectedBoundingBox != null) {
+      final boxPaint = Paint()
+        ..color = const Color(0xFF00E676).withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(detectedBoundingBox!, const Radius.circular(8)),
+        boxPaint,
+      );
+    }
+
+    // Render Tap-to-Focus Ring with ripple effect
     if (focusPoint != null) {
+      final rippleRadius = 22.0 + (animationValue * 6.0);
       final focusPaint = Paint()
         ..color = Colors.amberAccent.withValues(alpha: 0.85)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
-      canvas.drawCircle(focusPoint!, 24, focusPaint);
+      canvas.drawCircle(focusPoint!, rippleRadius, focusPaint);
       canvas.drawLine(
         Offset(focusPoint!.dx - 8, focusPoint!.dy),
         Offset(focusPoint!.dx + 8, focusPoint!.dy),
@@ -230,7 +267,8 @@ class ScannerOverlayPainter extends CustomPainter {
         oldDelegate.accentColor != accentColor ||
         oldDelegate.theme != theme ||
         oldDelegate.focusPoint != focusPoint ||
-        oldDelegate.isDetected != isDetected;
+        oldDelegate.isDetected != isDetected ||
+        oldDelegate.detectedBoundingBox != detectedBoundingBox;
   }
 }
 

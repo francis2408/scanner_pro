@@ -164,7 +164,15 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     await initialize();
   }
 
-  /// Initializes hardware cameras and starts live stream processing.
+  /// Global static helper to pre-warm ML Kit engines and camera hardware before UI build.
+  static Future<void> prewarm() async {
+    try {
+      UniversalScanEngine().initialize();
+      await cam.availableCameras();
+    } catch (_) {}
+  }
+
+  /// Initializes hardware cameras and starts live stream processing with auto-recovery.
   Future<void> initialize() async {
     if (_isInitialized || _isInitializing) return;
     _isInitializing = true;
@@ -190,6 +198,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         try {
           _minZoomLevel = await _cameraController!.getMinZoomLevel();
           _maxZoomLevel = await _cameraController!.getMaxZoomLevel();
+          if (options.continuousAutofocus) {
+            await _cameraController!.setFocusMode(cam.FocusMode.auto);
+          }
         } catch (_) {}
 
         _startLiveImageStream();
@@ -226,16 +237,17 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
+    final throttleMs = (1000 ~/ options.targetFrameRate).clamp(20, options.frameThrottleMs);
+
     try {
       _cameraController!.startImageStream((cam.CameraImage image) async {
         if (_isPaused || _isProcessingLiveFrame || _isAnalyzingEvent) return;
 
         final now = DateTime.now();
 
-        // Frame Throttling (e.g. max 10 FPS detection rate for low CPU/battery usage)
+        // Frame Rate Throttling (e.g. max 15-20 FPS for optimal CPU & battery performance)
         if (_lastFrameProcessedTime != null &&
-            now.difference(_lastFrameProcessedTime!).inMilliseconds <
-                options.frameThrottleMs) {
+            now.difference(_lastFrameProcessedTime!).inMilliseconds < throttleMs) {
           return;
         }
 
@@ -245,8 +257,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         try {
           // Process frame in background isolate if enabled
           if (options.enableIsolateProcessing) {
+            final rawBytes = _convertCameraImageToBytes(image);
             final taskData = IsolateFrameTaskData(
-              bytes: _convertCameraImageToBytes(image),
+              bytes: rawBytes,
               width: image.width,
               height: image.height,
               bytesPerRow: image.planes.isNotEmpty
@@ -254,6 +267,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
                   : image.width,
               scanWindow: options.scanWindow,
               computeLuminosity: options.enableAutoBrightnessCheck,
+              enableEnhancement: options.enableImageEnhancement,
+              enableBlurDetection: options.enableBlurDetection,
             );
 
             final isolateResult =
@@ -262,6 +277,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               isolateResult.averageLuminosity,
               isolateResult.isLowLight,
             );
+
+            // Auto-refocus if isolate detects frame blur
+            if (isolateResult.isBlurry && options.continuousAutofocus) {
+              _triggerAutoRefocus();
+            }
 
             final inputImage = _inputImageFromBytes(
               isolateResult.processedBytes,
@@ -279,7 +299,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               );
               if (result.isValid &&
                   result.confidence >= options.minConfidence) {
-                _emitScanDataEvent(result);
+                final enriched = result.copyWith(
+                  enhancementsApplied: isolateResult.enhancementsApplied,
+                  rawBytes: rawBytes,
+                );
+                _checkAutoZoomAndEmit(enriched, image.width, image.height);
               }
             }
           } else {
@@ -291,7 +315,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               );
               if (result.isValid &&
                   result.confidence >= options.minConfidence) {
-                _emitScanDataEvent(result);
+                _checkAutoZoomAndEmit(result, image.width, image.height);
               }
             }
           }
@@ -304,6 +328,30 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Error starting live image stream: $e');
     }
+  }
+
+  void _triggerAutoRefocus() {
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        _cameraController!.setFocusMode(cam.FocusMode.auto);
+      } catch (_) {}
+    }
+  }
+
+  void _checkAutoZoomAndEmit(ScanResult result, int frameWidth, int frameHeight) {
+    if (options.enableAutoZoom &&
+        result.boundingBox != null &&
+        _currentZoomLevel <= 1.2) {
+      final boxArea = result.boundingBox!.width * result.boundingBox!.height;
+      final totalArea = frameWidth * frameHeight;
+      if (totalArea > 0) {
+        final ratio = boxArea / totalArea;
+        if (ratio > 0.0 && ratio < options.autoZoomThreshold) {
+          autoZoomTo(2.0);
+        }
+      }
+    }
+    _emitScanDataEvent(result);
   }
 
   void _updateLuminosityState(double luminosity, bool lowLight) {
@@ -566,6 +614,10 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
     if (options.scanStrategy == ScanStrategy.batch) {
       _batchResults.add(result);
+      if (options.maxBatchCount != null &&
+          _batchResults.length >= options.maxBatchCount!) {
+        pauseScanning();
+      }
     } else if (options.scanStrategy == ScanStrategy.single) {
       pauseScanning();
     }
