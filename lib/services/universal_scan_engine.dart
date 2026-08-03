@@ -1,19 +1,23 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_mode.dart';
 import '../core/parsers/aadhaar_parser.dart';
+import '../core/parsers/business_card_parser.dart';
 import '../core/parsers/driving_license_parser.dart';
 import '../core/parsers/gs1_barcode_parser.dart';
 import '../core/parsers/mrz_passport_parser.dart';
 import '../core/parsers/pan_card_parser.dart';
+import '../core/parsers/receipt_parser.dart';
 import '../core/parsers/vin_parser.dart';
 import '../core/plugins/scanner_plugin.dart';
+import '../core/services/document_scanner_service.dart';
 
 /// Orchestrates ML Kit vision AI models via google_mlkit_commons and routes
-/// camera/image inputs to specialized document and payload parsers.
+/// camera/image/bytes inputs to specialized document and payload parsers.
 class UniversalScanEngine {
   bool _isInitialized = false;
 
@@ -28,6 +32,30 @@ class UniversalScanEngine {
   /// Closes and disposes active vision resources.
   void dispose() {
     _isInitialized = false;
+  }
+
+  /// Processes raw byte buffer directly from memory.
+  Future<ScanResult> processBytes(
+    Uint8List bytes,
+    ScanMode mode, {
+    int width = 640,
+    int height = 480,
+  }) async {
+    initialize();
+    try {
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: InputImageMetadata(
+          size: Size(width.toDouble(), height.toDouble()),
+          rotation: InputImageRotation.rotation0deg,
+          format: InputImageFormat.nv21,
+          bytesPerRow: width,
+        ),
+      );
+      return await processInputImage(inputImage, mode);
+    } catch (e) {
+      return ScanResult.error(mode, 'Failed to process raw bytes: ${e.toString()}');
+    }
   }
 
   /// Processes an image from a local file path with enhanced precision.
@@ -98,17 +126,9 @@ class UniversalScanEngine {
     Rect? bbox = rawResult.boundingBox;
     List<Offset>? corners = rawResult.corners;
     if (bbox == null && rawResult.isValid) {
-      final boxW = width * 0.6;
-      final boxH = height * 0.4;
-      final left = (width - boxW) / 2;
-      final top = (height - boxH) / 2;
-      bbox = Rect.fromLTWH(left, top, boxW, boxH);
-      corners = [
-        Offset(left, top),
-        Offset(left + boxW, top),
-        Offset(left + boxW, top + boxH),
-        Offset(left, top + boxH),
-      ];
+      final docCorners = DocumentScannerService.detectDocumentEdges(imgSize);
+      bbox = docCorners.toBoundingBox();
+      corners = docCorners.toList();
     }
 
     return ScanResult(
@@ -155,11 +175,28 @@ class UniversalScanEngine {
             : 'BARCODE';
     final typeStr = _determineBarcodeValueType(rawValue);
 
+    // Multi-code parsing support if payload contains delimiter
+    List<String> detectedCodes = [rawValue];
+    if (rawValue.contains('\n---\n') || rawValue.contains(';;;')) {
+      detectedCodes = rawValue
+          .split(RegExp(r'\n---\n|;;;'))
+          .map((c) => c.trim())
+          .where((c) => c.isNotEmpty)
+          .toList();
+    }
+
     final Map<String, String> fields = _parseStructuredBarcodeValues(
       rawValue,
       typeStr,
       formatStr,
     );
+
+    if (detectedCodes.length > 1) {
+      fields['Multi-Code Detection'] = '${detectedCodes.length} Codes Found';
+      for (int i = 0; i < detectedCodes.length; i++) {
+        fields['Code #${i + 1}'] = detectedCodes[i];
+      }
+    }
 
     if (mode == ScanMode.pdf417 &&
         (rawValue.contains('@') || rawValue.contains('ANSI'))) {
@@ -174,7 +211,12 @@ class UniversalScanEngine {
       imagePath: imagePath,
       format: formatStr,
       fields: fields,
-      metadata: {'format': formatStr, 'type': typeStr},
+      metadata: {
+        'format': formatStr,
+        'type': typeStr,
+        'multiCodes': detectedCodes,
+        'codeCount': detectedCodes.length,
+      },
     );
   }
 
@@ -311,35 +353,43 @@ class UniversalScanEngine {
         break;
       case ScanMode.ocr:
       default:
-        final lines = rawText
-            .split('\n')
-            .where((l) => l.trim().isNotEmpty)
-            .toList();
-        final words = rawText
-            .split(RegExp(r'\s+'))
-            .where((w) => w.isNotEmpty)
-            .toList();
-        final blocks = rawText
-            .split('\n\n')
-            .where((b) => b.trim().isNotEmpty)
-            .toList();
-        result = ScanResult(
-          mode: ScanMode.ocr,
-          rawValue: rawText,
-          isValid: true,
-          confidence: 0.98,
-          imagePath: imagePath,
-          fields: {
-            'Text Recognition Engine': 'Google ML Kit Commons Vision OCR',
-            'OCR Precision Score': '0.98 (High-Density Latin Character Recognition)',
-            'Total Blocks Detected': '${blocks.isNotEmpty ? blocks.length : 1}',
-            'Total Lines': '${lines.length}',
-            'Total Word Count': '${words.length}',
-            'Total Character Count': '${rawText.length}',
-            'Line 1 Preview': lines.isNotEmpty ? lines[0] : 'N/A',
-            'Line 2 Preview': lines.length > 1 ? lines[1] : 'N/A',
-          },
-        );
+        // Smart Receipt vs Business Card vs Document OCR dispatching
+        final upperText = rawText.toUpperCase();
+        if (upperText.contains('TOTAL') && (upperText.contains('TAX') || upperText.contains('RECEIPT') || upperText.contains('AMOUNT'))) {
+          result = ReceiptParser.parse(rawText);
+        } else if (upperText.contains('ENGINEER') || upperText.contains('MANAGER') || upperText.contains('DIRECTOR') || upperText.contains('EMAIL:') || upperText.contains('TEL:')) {
+          result = BusinessCardParser.parse(rawText);
+        } else {
+          final lines = rawText
+              .split('\n')
+              .where((l) => l.trim().isNotEmpty)
+              .toList();
+          final words = rawText
+              .split(RegExp(r'\s+'))
+              .where((w) => w.isNotEmpty)
+              .toList();
+          final blocks = rawText
+              .split('\n\n')
+              .where((b) => b.trim().isNotEmpty)
+              .toList();
+          result = ScanResult(
+            mode: ScanMode.ocr,
+            rawValue: rawText,
+            isValid: true,
+            confidence: 0.98,
+            imagePath: imagePath,
+            fields: {
+              'Text Recognition Engine': 'Google ML Kit Commons Vision OCR',
+              'OCR Precision Score': '0.98 (High-Density Latin Character Recognition)',
+              'Total Blocks Detected': '${blocks.isNotEmpty ? blocks.length : 1}',
+              'Total Lines': '${lines.length}',
+              'Total Word Count': '${words.length}',
+              'Total Character Count': '${rawText.length}',
+              'Line 1 Preview': lines.isNotEmpty ? lines[0] : 'N/A',
+              'Line 2 Preview': lines.length > 1 ? lines[1] : 'N/A',
+            },
+          );
+        }
         break;
     }
 
@@ -457,4 +507,3 @@ class UniversalScanEngine {
     return null;
   }
 }
-

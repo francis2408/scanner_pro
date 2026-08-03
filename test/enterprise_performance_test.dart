@@ -164,5 +164,83 @@ void main() {
 
       controller.dispose();
     });
+
+    test('7. Receipt OCR Parser extracts merchant, total amount and tax', () {
+      const receiptText = '''
+ACME SUPERMARKET
+123 MAIN STREET
+DATE: 2026-08-01
+ITEM 1   \$12.50
+ITEM 2    \$4.99
+TAX       \$1.40
+TOTAL    \$18.89
+THANK YOU FOR SHOPPING
+''';
+
+      final result = ReceiptParser.parse(receiptText);
+      expect(result.isValid, isTrue);
+      expect(result.fields['Merchant / Store'], equals('ACME SUPERMARKET'));
+      expect(result.fields['Total Amount'], equals('\$18.89'));
+      expect(result.fields['Tax Amount'], equals('\$1.40'));
+      expect(result.fields['Receipt Date'], equals('2026-08-01'));
+    });
+
+    test('8. Business Card OCR Parser extracts contact name, email and phone', () {
+      const cardText = '''
+Francis Xavier
+Senior Systems Architect
+TechCorp Global Ltd
+Email: francis@techcorp.io
+Tel: +1-555-0199
+Website: www.techcorp.io
+''';
+
+      final result = BusinessCardParser.parse(cardText);
+      expect(result.isValid, isTrue);
+      expect(result.fields['Contact Name'], equals('Francis Xavier'));
+      expect(result.fields['Email Address'], equals('francis@techcorp.io'));
+      expect(result.fields['Phone Number'], equals('+1-555-0199'));
+    });
+
+    test('9. DocumentScannerService & PdfExportUtil PDF exporter', () {
+      final corners = DocumentScannerService.detectDocumentEdges(const Size(800, 600));
+      expect(corners.topLeft.dx, greaterThan(0.0));
+      expect(corners.bottomRight.dx, lessThan(800.0));
+
+      final sampleResult = ScanResult(
+        mode: ScanMode.qr,
+        rawValue: 'https://flutter.dev',
+        fields: {'Type': 'URL'},
+      );
+
+      final pdfBytes = PdfExportUtil.exportResultsToPdf(
+        results: [sampleResult],
+        title: 'Enterprise Test PDF',
+      );
+
+      expect(pdfBytes.isNotEmpty, isTrue);
+      expect(String.fromCharCodes(pdfBytes.sublist(0, 8)), contains('%PDF-1.4'));
+    });
+
+    test('10. Telemetry ScannerStats and Scan History', () async {
+      final controller = ScannerController(
+        options: const ScannerOptions(enableScanHistory: true, maxHistorySize: 10),
+      );
+
+      expect(controller.scanHistory.isEmpty, isTrue);
+
+      await controller.processBytes(
+        Uint8List.fromList('https://flutter.dev'.codeUnits),
+        mode: ScanMode.qr,
+      );
+
+      expect(controller.scanHistory.length, equals(1));
+      expect(controller.stats, isNotNull);
+
+      controller.clearHistory();
+      expect(controller.scanHistory.isEmpty, isTrue);
+
+      controller.dispose();
+    });
   });
 }

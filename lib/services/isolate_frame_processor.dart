@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../core/models/scanner_options.dart';
 
@@ -13,6 +12,7 @@ class IsolateFrameTaskData {
   final bool computeLuminosity;
   final bool enableEnhancement;
   final bool enableBlurDetection;
+  final int? previousFrameHash;
 
   const IsolateFrameTaskData({
     required this.bytes,
@@ -23,6 +23,7 @@ class IsolateFrameTaskData {
     this.computeLuminosity = true,
     this.enableEnhancement = true,
     this.enableBlurDetection = true,
+    this.previousFrameHash,
   });
 }
 
@@ -35,6 +36,10 @@ class IsolateFrameResult {
   final bool isLowLight;
   final double blurScore;
   final bool isBlurry;
+  final bool isMotionDetected;
+  final double motionScore;
+  final bool isStaticFrame;
+  final int frameHash;
   final double contrastScore;
   final List<String> enhancementsApplied;
 
@@ -46,14 +51,18 @@ class IsolateFrameResult {
     required this.isLowLight,
     this.blurScore = 100.0,
     this.isBlurry = false,
+    this.isMotionDetected = false,
+    this.motionScore = 0.0,
+    this.isStaticFrame = false,
+    this.frameHash = 0,
     this.contrastScore = 1.0,
     this.enhancementsApplied = const [],
   });
 }
 
 /// Multithreaded background isolate worker for processing camera image frames,
-/// performing sub-region ROI cropping, image enhancement, blur detection,
-/// and calculating frame luminosity without UI stutter.
+/// performing sub-region ROI cropping, image enhancement, blur/motion detection,
+/// static frame skipping, and calculating frame luminosity without UI stutter.
 class IsolateFrameProcessor {
   static Uint8List? _reusableBuffer;
 
@@ -73,21 +82,34 @@ class IsolateFrameProcessor {
     final h = task.height;
     final enhancements = <String>[];
 
-    // 1. Calculate luminosity from Y (luma) plane
+    // 1. Calculate luminosity from Y (luma) plane & compute lightweight frame hash
     double luminosity = 0.5;
+    int currentFrameHash = 0;
     if (task.computeLuminosity && rawBytes.isNotEmpty) {
       int sum = 0;
       final sampleStep = (rawBytes.length ~/ 1000).clamp(1, 100);
       int sampleCount = 0;
+      int hashAcc = 17;
       for (int i = 0; i < rawBytes.length && i < w * h; i += sampleStep) {
-        sum += rawBytes[i];
+        final b = rawBytes[i];
+        sum += b;
+        hashAcc = (hashAcc * 31 + b) & 0x7FFFFFFF;
         sampleCount++;
       }
       if (sampleCount > 0) {
         luminosity = (sum / sampleCount) / 255.0;
       }
+      currentFrameHash = hashAcc;
     }
     final isLowLight = luminosity < 0.25;
+
+    // Static scene detection check
+    bool isStaticFrame = false;
+    if (task.previousFrameHash != null && task.previousFrameHash != 0) {
+      if ((task.previousFrameHash! - currentFrameHash).abs() < 50) {
+        isStaticFrame = true;
+      }
+    }
 
     // 2. Perform ROI Sub-region cropping if scanWindow is defined
     Uint8List workingBytes = rawBytes;
@@ -129,12 +151,16 @@ class IsolateFrameProcessor {
       enhancements.add('ROI Crop (${currentW}x$currentH)');
     }
 
-    // 3. Perform Blur Detection via discrete Laplacian variance check
+    // 3. Perform Blur & Motion Detection via discrete Laplacian variance & gradient check
     double blurScore = 120.0;
     bool isBlurry = false;
+    bool isMotionDetected = false;
+    double motionScore = 0.0;
+
     if (task.enableBlurDetection && workingBytes.isNotEmpty && currentW > 10 && currentH > 10) {
       double sumLaplacian = 0.0;
       double sumLaplacianSq = 0.0;
+      double sumDiffHorizontal = 0.0;
       int count = 0;
       final step = math.max(2, (currentW * currentH) ~/ 8000);
 
@@ -155,6 +181,9 @@ class IsolateFrameProcessor {
           final lapVal = (4 * center - left - right - top - bottom).toDouble();
           sumLaplacian += lapVal;
           sumLaplacianSq += lapVal * lapVal;
+
+          final hGrad = (right - left).abs().toDouble();
+          sumDiffHorizontal += hGrad;
           count++;
         }
       }
@@ -162,8 +191,13 @@ class IsolateFrameProcessor {
       if (count > 0) {
         final mean = sumLaplacian / count;
         blurScore = (sumLaplacianSq / count) - (mean * mean);
+        motionScore = sumDiffHorizontal / count;
+
         if (blurScore < 25.0) {
           isBlurry = true;
+        }
+        if (motionScore > 65.0) {
+          isMotionDetected = true;
         }
       }
     }
@@ -208,6 +242,10 @@ class IsolateFrameProcessor {
       isLowLight: isLowLight,
       blurScore: blurScore,
       isBlurry: isBlurry,
+      isMotionDetected: isMotionDetected,
+      motionScore: motionScore,
+      isStaticFrame: isStaticFrame,
+      frameHash: currentFrameHash,
       contrastScore: contrastScore,
       enhancementsApplied: enhancements,
     );
@@ -221,4 +259,3 @@ class IsolateFrameProcessor {
     return _reusableBuffer!;
   }
 }
-

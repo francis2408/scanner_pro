@@ -55,7 +55,8 @@ class ScanWindow {
 }
 
 /// Configuration options controlling camera detection rate, ROI bounds,
-/// duplicate caching, auto-zoom, image enhancement, and isolate multi-threading.
+/// duplicate caching, auto-zoom, image enhancement, isolate multi-threading,
+/// and enterprise scanning parameters.
 class ScannerOptions {
   /// Active result handling strategy (single, continuous, batch).
   final ScanStrategy scanStrategy;
@@ -69,6 +70,12 @@ class ScannerOptions {
 
   /// Target frame processing rate in frames per second (e.g. 15-20 FPS).
   final int targetFrameRate;
+
+  /// Dynamically adjust frame skipping based on device processing load & latency.
+  final bool enableAdaptiveFrameSkipping;
+
+  /// Automatically skip vision engine analysis when scene remains static.
+  final bool enablePauseOnStaticFrame;
 
   /// Timeout duration during which identical scanned payloads are ignored.
   final Duration duplicateTimeout;
@@ -88,17 +95,35 @@ class ScannerOptions {
   /// Analyze frame luminosity and emit low-light alert if below threshold.
   final bool enableAutoBrightnessCheck;
 
+  /// Automatically switch flashlight on when ambient light drops below threshold.
+  final bool autoTorchInLowLight;
+
   /// Normalized ambient luminosity threshold (0.0 to 1.0) for low-light detection.
   final double lowLightThreshold;
 
   /// Automatically trigger digital camera zoom when small barcodes are detected far away.
   final bool enableAutoZoom;
 
+  /// Automatically reset digital zoom back to 1.0x after successful scan emission.
+  final bool autoResetZoomAfterScan;
+
   /// Code-to-viewport area ratio below which auto-zoom triggers (e.g., 0.15 = 15%).
   final double autoZoomThreshold;
 
   /// Whether continuous autofocus mode is enabled.
   final bool continuousAutofocus;
+
+  /// Allow detecting multiple barcodes/QR codes in a single image pass.
+  final bool enableMultiCodeDetection;
+
+  /// Maximum number of codes to return in a multi-code pass.
+  final int maxMultiCodeCount;
+
+  /// Retain in-memory log of recent scan results.
+  final bool enableScanHistory;
+
+  /// Maximum scan history capacity.
+  final int maxHistorySize;
 
   /// Optional maximum items limit in batch inventory mode.
   final int? maxBatchCount;
@@ -112,16 +137,24 @@ class ScannerOptions {
     this.scanWindow = ScanWindow.centerReticle,
     this.frameThrottleMs = 50,
     this.targetFrameRate = 20,
+    this.enableAdaptiveFrameSkipping = true,
+    this.enablePauseOnStaticFrame = true,
     this.duplicateTimeout = const Duration(milliseconds: 1000),
     this.enableDuplicateFilter = true,
     this.enableIsolateProcessing = true,
     this.enableImageEnhancement = true,
     this.enableBlurDetection = true,
     this.enableAutoBrightnessCheck = true,
+    this.autoTorchInLowLight = false,
     this.lowLightThreshold = 0.25,
     this.enableAutoZoom = true,
+    this.autoResetZoomAfterScan = true,
     this.autoZoomThreshold = 0.15,
     this.continuousAutofocus = true,
+    this.enableMultiCodeDetection = true,
+    this.maxMultiCodeCount = 10,
+    this.enableScanHistory = true,
+    this.maxHistorySize = 50,
     this.maxBatchCount,
     this.minConfidence = 0.70,
   });
@@ -132,6 +165,8 @@ class ScannerOptions {
     scanWindow: ScanWindow.centerReticle,
     frameThrottleMs: 50,
     targetFrameRate: 20,
+    enableAdaptiveFrameSkipping: true,
+    enablePauseOnStaticFrame: true,
     duplicateTimeout: Duration(milliseconds: 1000),
     enableDuplicateFilter: true,
     enableIsolateProcessing: true,
@@ -147,6 +182,8 @@ class ScannerOptions {
     scanWindow: ScanWindow.centerReticle,
     frameThrottleMs: 150,
     targetFrameRate: 10,
+    enableAdaptiveFrameSkipping: true,
+    enablePauseOnStaticFrame: true,
     duplicateTimeout: Duration(milliseconds: 1500),
     enableDuplicateFilter: true,
     enableIsolateProcessing: true,
@@ -161,16 +198,24 @@ class ScannerOptions {
     ScanWindow? scanWindow,
     int? frameThrottleMs,
     int? targetFrameRate,
+    bool? enableAdaptiveFrameSkipping,
+    bool? enablePauseOnStaticFrame,
     Duration? duplicateTimeout,
     bool? enableDuplicateFilter,
     bool? enableIsolateProcessing,
     bool? enableImageEnhancement,
     bool? enableBlurDetection,
     bool? enableAutoBrightnessCheck,
+    bool? autoTorchInLowLight,
     double? lowLightThreshold,
     bool? enableAutoZoom,
+    bool? autoResetZoomAfterScan,
     double? autoZoomThreshold,
     bool? continuousAutofocus,
+    bool? enableMultiCodeDetection,
+    int? maxMultiCodeCount,
+    bool? enableScanHistory,
+    int? maxHistorySize,
     int? maxBatchCount,
     double? minConfidence,
   }) {
@@ -179,6 +224,10 @@ class ScannerOptions {
       scanWindow: scanWindow ?? this.scanWindow,
       frameThrottleMs: frameThrottleMs ?? this.frameThrottleMs,
       targetFrameRate: targetFrameRate ?? this.targetFrameRate,
+      enableAdaptiveFrameSkipping:
+          enableAdaptiveFrameSkipping ?? this.enableAdaptiveFrameSkipping,
+      enablePauseOnStaticFrame:
+          enablePauseOnStaticFrame ?? this.enablePauseOnStaticFrame,
       duplicateTimeout: duplicateTimeout ?? this.duplicateTimeout,
       enableDuplicateFilter:
           enableDuplicateFilter ?? this.enableDuplicateFilter,
@@ -189,10 +238,18 @@ class ScannerOptions {
       enableBlurDetection: enableBlurDetection ?? this.enableBlurDetection,
       enableAutoBrightnessCheck:
           enableAutoBrightnessCheck ?? this.enableAutoBrightnessCheck,
+      autoTorchInLowLight: autoTorchInLowLight ?? this.autoTorchInLowLight,
       lowLightThreshold: lowLightThreshold ?? this.lowLightThreshold,
       enableAutoZoom: enableAutoZoom ?? this.enableAutoZoom,
+      autoResetZoomAfterScan:
+          autoResetZoomAfterScan ?? this.autoResetZoomAfterScan,
       autoZoomThreshold: autoZoomThreshold ?? this.autoZoomThreshold,
       continuousAutofocus: continuousAutofocus ?? this.continuousAutofocus,
+      enableMultiCodeDetection:
+          enableMultiCodeDetection ?? this.enableMultiCodeDetection,
+      maxMultiCodeCount: maxMultiCodeCount ?? this.maxMultiCodeCount,
+      enableScanHistory: enableScanHistory ?? this.enableScanHistory,
+      maxHistorySize: maxHistorySize ?? this.maxHistorySize,
       maxBatchCount: maxBatchCount ?? this.maxBatchCount,
       minConfidence: minConfidence ?? this.minConfidence,
     );

@@ -1,14 +1,19 @@
 export 'core/models/scan_result.dart';
 export 'core/models/scanner_mode.dart';
 export 'core/models/scanner_options.dart';
+export 'core/models/scanner_stats.dart';
 export 'core/models/scanner_theme.dart';
 export 'core/parsers/aadhaar_parser.dart';
+export 'core/parsers/business_card_parser.dart';
 export 'core/parsers/driving_license_parser.dart';
 export 'core/parsers/gs1_barcode_parser.dart';
 export 'core/parsers/mrz_passport_parser.dart';
 export 'core/parsers/pan_card_parser.dart';
+export 'core/parsers/receipt_parser.dart';
 export 'core/parsers/vin_parser.dart';
 export 'core/plugins/scanner_plugin.dart';
+export 'core/services/document_scanner_service.dart';
+export 'core/services/pdf_exporter.dart';
 export 'services/external_lookup_service.dart';
 export 'services/isolate_frame_processor.dart';
 export 'services/sample_card_presets.dart';
@@ -19,4 +24,3 @@ export 'ui/widgets/scanner_camera_preview.dart';
 export 'ui/widgets/scanner_overlay_painter.dart';
 export 'ui/widgets/universal_scanner_view.dart';
 export 'package:google_mlkit_commons/google_mlkit_commons.dart';
-

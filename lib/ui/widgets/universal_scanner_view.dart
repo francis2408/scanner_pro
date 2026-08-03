@@ -363,6 +363,38 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                                     ),
                                   ),
                                 ],
+                                if (_controller.isBlurry || _controller.isMotionDetected) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepOrange.shade800,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.vibration_rounded,
+                                          size: 14,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Hold Still',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             )
                           else
@@ -493,7 +525,6 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                       ),
                   ],
                 ),
-
               ),
             ],
           ),
