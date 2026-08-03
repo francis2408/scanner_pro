@@ -1,3 +1,7 @@
+# 1.1.1
+
+- Dependency Constraint Update: Expanded `google_mlkit_commons` dependency constraint to `>=0.9.0 <0.13.0` to support up-to-date stable versions (`0.11.0` & `0.12.0`).
+
 # 1.1.0
 
 - ML Kit Dependency Streamlining: Refactored vision scanning engine to rely exclusively on `google_mlkit_commons`, removing individual sub-package dependencies.
