@@ -1,3 +1,9 @@
+# 1.3.1
+
+- **Multi-Field Business Card OCR Line Classification**: Enhanced line classification for names, job titles, company names, email addresses, phone numbers, websites, and physical addresses across arbitrary line layouts.
+- **Modular Face & KYC Recognition Exports**: Added `scanner_face.dart` exporting face detection, bounding box extraction, and liveness verification metrics.
+- **Package Publication**: Released update with 100% test pass rate across 45 unit, widget, and benchmark tests.
+
 # 1.3.0
 
 - **Smart Adaptive Frame Processing & Static Scene Skipping**: Added frame difference hashing and adaptive latency feedback loops in `IsolateFrameProcessor` and `ScannerController` (30–50% CPU & battery savings).
