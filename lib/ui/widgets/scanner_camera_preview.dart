@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../../services/scanner_controller.dart';
 
 /// A lightweight, unopinionated camera preview widget for [ScannerController].
-/// Renders ONLY the camera feed (or a custom placeholder) allowing developers to build custom UI overlays and screen layouts.
-class ScannerCameraPreview extends StatelessWidget {
+/// Renders ONLY the camera feed (or a custom placeholder) with tap-to-focus and pinch-to-zoom support.
+class ScannerCameraPreview extends StatefulWidget {
   /// Active [ScannerController] managing camera feed.
   final ScannerController controller;
 
@@ -28,31 +28,62 @@ class ScannerCameraPreview extends StatelessWidget {
   });
 
   @override
+  State<ScannerCameraPreview> createState() => _ScannerCameraPreviewState();
+}
+
+class _ScannerCameraPreviewState extends State<ScannerCameraPreview> {
+  double _baseScale = 1.0;
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: widget.controller,
       builder: (context, _) {
-        if (controller.isInitialized &&
-            controller.cameraController != null &&
-            controller.cameraController!.value.isInitialized) {
-          final cameraWidget = CameraPreview(controller.cameraController!);
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              FittedBox(
-                fit: fit,
-                child: SizedBox(
-                  width: controller.cameraController!.value.previewSize?.height ?? 100,
-                  height: controller.cameraController!.value.previewSize?.width ?? 100,
-                  child: cameraWidget,
+        if (widget.controller.isInitialized &&
+            widget.controller.cameraController != null &&
+            widget.controller.cameraController!.value.isInitialized) {
+          final cameraWidget = CameraPreview(widget.controller.cameraController!);
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box != null) {
+                final localOffset = details.localPosition;
+                final relativePoint = Offset(
+                  (localOffset.dx / box.size.width).clamp(0.0, 1.0),
+                  (localOffset.dy / box.size.height).clamp(0.0, 1.0),
+                );
+                widget.controller.tapToFocus(relativePoint);
+              }
+            },
+            onScaleStart: (details) {
+              _baseScale = widget.controller.currentZoomLevel;
+            },
+            onScaleUpdate: (details) {
+              final newScale = (_baseScale * details.scale).clamp(
+                widget.controller.minZoomLevel,
+                widget.controller.maxZoomLevel,
+              );
+              widget.controller.setZoomLevel(newScale);
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                FittedBox(
+                  fit: widget.fit,
+                  child: SizedBox(
+                    width: widget.controller.cameraController!.value.previewSize?.height ?? 100,
+                    height: widget.controller.cameraController!.value.previewSize?.width ?? 100,
+                    child: cameraWidget,
+                  ),
                 ),
-              ),
-              if (child != null) child!,
-            ],
+                if (widget.child != null) widget.child!,
+              ],
+            ),
           );
         }
 
-        return placeholder ?? _defaultSimulatorViewfinder(context);
+        return widget.placeholder ?? _defaultSimulatorViewfinder(context);
       },
     );
   }
@@ -92,7 +123,7 @@ class ScannerCameraPreview extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              controller.errorMessage ?? 'Simulated sensor output / ready for stream',
+              widget.controller.errorMessage ?? 'Simulated sensor output / ready for stream',
               style: const TextStyle(
                 color: Colors.white60,
                 fontSize: 12,
@@ -105,3 +136,4 @@ class ScannerCameraPreview extends StatelessWidget {
     );
   }
 }
+

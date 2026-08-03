@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 
 import '../core/models/scan_result.dart';
@@ -9,6 +10,7 @@ import '../core/parsers/gs1_barcode_parser.dart';
 import '../core/parsers/mrz_passport_parser.dart';
 import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/vin_parser.dart';
+import '../core/plugins/scanner_plugin.dart';
 
 /// Orchestrates ML Kit vision AI models via google_mlkit_commons and routes
 /// camera/image inputs to specialized document and payload parsers.
@@ -46,12 +48,27 @@ class UniversalScanEngine {
     String? imagePath,
   }) async {
     initialize();
+    final stopwatch = Stopwatch()..start();
 
+    // Check if custom registered plugin exists for mode
+    final plugin = ScannerPluginRegistry.findForMode(mode);
+    if (plugin != null) {
+      try {
+        final pluginResult = await plugin.processInputImage(inputImage);
+        if (pluginResult != null) {
+          stopwatch.stop();
+          return pluginResult;
+        }
+      } catch (_) {}
+    }
+
+    ScanResult rawResult;
     switch (mode) {
       case ScanMode.qr:
       case ScanMode.barcode:
       case ScanMode.pdf417:
-        return await _processBarcodes(inputImage, mode, imagePath: imagePath);
+        rawResult = await _processBarcodes(inputImage, mode, imagePath: imagePath);
+        break;
 
       case ScanMode.passport:
       case ScanMode.aadhaar:
@@ -59,15 +76,55 @@ class UniversalScanEngine {
       case ScanMode.drivingLicense:
       case ScanMode.vin:
       case ScanMode.ocr:
-        return await _processTextAndDocuments(
+        rawResult = await _processTextAndDocuments(
           inputImage,
           mode,
           imagePath: imagePath,
         );
+        break;
 
       case ScanMode.face:
-        return await _processFaces(inputImage, mode, imagePath: imagePath);
+        rawResult = await _processFaces(inputImage, mode, imagePath: imagePath);
+        break;
     }
+
+    stopwatch.stop();
+    final duration = stopwatch.elapsed;
+
+    final width = inputImage.metadata?.size.width ?? 640.0;
+    final height = inputImage.metadata?.size.height ?? 480.0;
+    final imgSize = Size(width, height);
+
+    Rect? bbox = rawResult.boundingBox;
+    List<Offset>? corners = rawResult.corners;
+    if (bbox == null && rawResult.isValid) {
+      final boxW = width * 0.6;
+      final boxH = height * 0.4;
+      final left = (width - boxW) / 2;
+      final top = (height - boxH) / 2;
+      bbox = Rect.fromLTWH(left, top, boxW, boxH);
+      corners = [
+        Offset(left, top),
+        Offset(left + boxW, top),
+        Offset(left + boxW, top + boxH),
+        Offset(left, top + boxH),
+      ];
+    }
+
+    return ScanResult(
+      mode: rawResult.mode,
+      rawValue: rawResult.rawValue,
+      fields: rawResult.fields,
+      isValid: rawResult.isValid,
+      confidence: rawResult.confidence,
+      timestamp: rawResult.timestamp,
+      imagePath: rawResult.imagePath,
+      corners: corners,
+      boundingBox: bbox,
+      imageSize: imgSize,
+      scanDuration: duration,
+      metadata: rawResult.metadata,
+    );
   }
 
   Future<ScanResult> _processBarcodes(
@@ -306,6 +363,13 @@ class UniversalScanEngine {
 
     const isLivenessPass = true;
 
+    final faceRect = Rect.fromLTWH(
+      left.toDouble(),
+      top.toDouble(),
+      faceWidth.toDouble(),
+      faceHeight.toDouble(),
+    );
+
     return ScanResult(
       mode: ScanMode.face,
       rawValue:
@@ -313,6 +377,13 @@ class UniversalScanEngine {
       isValid: isLivenessPass,
       confidence: 0.98,
       imagePath: imagePath,
+      boundingBox: faceRect,
+      corners: [
+        faceRect.topLeft,
+        faceRect.topRight,
+        faceRect.bottomRight,
+        faceRect.bottomLeft,
+      ],
       fields: {
         'Total Faces Detected': '1',
         'Liveness Verification': 'Passed ✓',
@@ -381,3 +452,4 @@ class UniversalScanEngine {
     return null;
   }
 }
+

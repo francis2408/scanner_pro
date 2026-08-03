@@ -34,14 +34,14 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('ScannerCameraPreview renders placeholder when uninitialized', (widgetTester) async {
+    testWidgets('ScannerCameraPreview renders placeholder when uninitialized', (
+      widgetTester,
+    ) async {
       final controller = ScannerController(initialMode: ScanMode.qr);
 
       await widgetTester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: ScannerCameraPreview(controller: controller),
-          ),
+          home: Scaffold(body: ScannerCameraPreview(controller: controller)),
         ),
       );
 
@@ -49,7 +49,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('UniversalScannerView.builder renders custom screen design', (widgetTester) async {
+    testWidgets('UniversalScannerView.builder renders custom screen design', (
+      widgetTester,
+    ) async {
       ScanResult? detectedResult;
 
       await widgetTester.pumpWidget(
@@ -65,7 +67,10 @@ void main() {
                     const Positioned(
                       top: 40,
                       left: 20,
-                      child: Text('MY CUSTOM HEADER', style: TextStyle(color: Colors.white)),
+                      child: Text(
+                        'MY CUSTOM HEADER',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     ElevatedButton(
                       onPressed: () => controller.setMode(ScanMode.vin),

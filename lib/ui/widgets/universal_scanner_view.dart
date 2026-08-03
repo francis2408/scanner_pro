@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/scan_result.dart';
 import '../../core/models/scanner_mode.dart';
+import '../../core/models/scanner_options.dart';
 import '../../core/models/scanner_theme.dart';
 import '../../services/scanner_controller.dart';
 import 'result_bottom_sheet.dart';
@@ -301,6 +302,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                             animationValue: _laserAnimController.value,
                             accentColor: _getCategoryColor(currentMode.category),
                             theme: uiTheme,
+                            focusPoint: _controller.lastTapFocusPoint,
                           ),
                         );
                       },
@@ -313,13 +315,52 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           if (_controller.isInitialized)
-                            _buildIconButton(
-                              icon: _controller.isFlashOn
-                                  ? Icons.flash_on_rounded
-                                  : Icons.flash_off_rounded,
-                              onPressed: () => _controller.toggleFlash(),
-                              active: _controller.isFlashOn,
-                              category: currentMode.category,
+                            Row(
+                              children: [
+                                _buildIconButton(
+                                  icon: _controller.isFlashOn
+                                      ? Icons.flash_on_rounded
+                                      : Icons.flash_off_rounded,
+                                  onPressed: () => _controller.toggleFlash(),
+                                  active: _controller.isFlashOn,
+                                  category: currentMode.category,
+                                ),
+                                if (_controller.isLowLight && !_controller.isFlashOn) ...[
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => _controller.toggleFlash(),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade800,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.lightbulb_rounded,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Low Light',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             )
                           else
                             const SizedBox(width: 44),
@@ -329,6 +370,28 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                             const SizedBox.shrink(),
                           Row(
                             children: [
+                              if (_controller.options.scanStrategy ==
+                                  ScanStrategy.batch) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getCategoryColor(currentMode.category),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    '${_controller.batchResults.length} Items',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
                               _buildIconButton(
                                 icon: Icons.photo_library_rounded,
                                 onPressed: () => _controller.pickAndScanImage(),
@@ -347,11 +410,48 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                         ],
                       ),
                     ),
+                    Positioned(
+                      right: 16,
+                      bottom: uiTheme.showGuideBox ? 80 : 24,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [1.0, 2.0, 4.0].map((zoom) {
+                          final isSelected =
+                              (_controller.currentZoomLevel - zoom).abs() < 0.2;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: GestureDetector(
+                              onTap: () => _controller.setZoomLevel(zoom),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? _getCategoryColor(currentMode.category)
+                                      : Colors.black.withValues(alpha: 0.6),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${zoom.toInt()}x',
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                     if (uiTheme.showGuideBox)
                       Positioned(
                         bottom: 24,
                         left: 16,
-                        right: 16,
+                        right: 80,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -390,6 +490,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                       ),
                   ],
                 ),
+
               ),
             ],
           ),

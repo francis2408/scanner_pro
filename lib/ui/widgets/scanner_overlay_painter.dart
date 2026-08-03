@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/models/scanner_mode.dart';
 import '../../core/models/scanner_theme.dart';
 
-/// Custom painter for camera viewfinder cutout, reticle corners, and animated laser beam.
+/// Custom painter for camera viewfinder cutout, reticle corners, tap-to-focus ring,
+/// detection highlight flash, and animated laser beam.
 class ScannerOverlayPainter extends CustomPainter {
   /// Active scanning mode.
   final ScanMode scanMode;
@@ -16,12 +17,20 @@ class ScannerOverlayPainter extends CustomPainter {
   /// Optional custom UI design theme configuration.
   final ScannerUiTheme? theme;
 
+  /// User tap-to-focus point coordinates relative to overlay viewport.
+  final Offset? focusPoint;
+
+  /// Whether a valid barcode or document frame was detected in current frame pass.
+  final bool isDetected;
+
   /// Constructs a new [ScannerOverlayPainter].
   ScannerOverlayPainter({
     required this.scanMode,
     required this.animationValue,
     this.accentColor = const Color(0xFF00E5FF),
     this.theme,
+    this.focusPoint,
+    this.isDetected = false,
   });
 
   @override
@@ -67,13 +76,14 @@ class ScannerOverlayPainter extends CustomPainter {
     );
     canvas.drawPath(path, backgroundPaint);
 
-    final effectiveBorderColor =
-        theme?.reticleBorderColor ??
-        (theme?.accentColor ?? accentColor).withValues(alpha: 0.85);
+    final effectiveBorderColor = isDetected
+        ? const Color(0xFF00E676)
+        : (theme?.reticleBorderColor ??
+            (theme?.accentColor ?? accentColor).withValues(alpha: 0.85));
     final borderPaint = Paint()
       ..color = effectiveBorderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = theme?.reticleBorderWidth ?? 2.5;
+      ..strokeWidth = isDetected ? 3.5 : (theme?.reticleBorderWidth ?? 2.5);
 
     if (scanMode == ScanMode.face) {
       canvas.drawOval(scanRect, borderPaint);
@@ -85,8 +95,9 @@ class ScannerOverlayPainter extends CustomPainter {
     }
 
     if (scanMode != ScanMode.face) {
-      final effectiveCornerColor =
-          theme?.reticleCornerColor ?? theme?.accentColor ?? accentColor;
+      final effectiveCornerColor = isDetected
+          ? const Color(0xFF00E676)
+          : (theme?.reticleCornerColor ?? theme?.accentColor ?? accentColor);
       final cornerPaint = Paint()
         ..color = effectiveCornerColor
         ..style = PaintingStyle.stroke
@@ -141,8 +152,9 @@ class ScannerOverlayPainter extends CustomPainter {
     }
 
     if (theme?.showLaserBeam ?? true) {
-      final effectiveLaserColor =
-          theme?.laserBeamColor ?? theme?.accentColor ?? accentColor;
+      final effectiveLaserColor = isDetected
+          ? const Color(0xFF00E676)
+          : (theme?.laserBeamColor ?? theme?.accentColor ?? accentColor);
       final beamY = rectTop + (rectHeight * animationValue);
       final beamPaint = Paint()
         ..color = effectiveLaserColor
@@ -153,6 +165,25 @@ class ScannerOverlayPainter extends CustomPainter {
         Offset(rectLeft + 8, beamY),
         Offset(rectLeft + rectWidth - 8, beamY),
         beamPaint,
+      );
+    }
+
+    // Render tap-to-focus ring if present
+    if (focusPoint != null) {
+      final focusPaint = Paint()
+        ..color = Colors.amberAccent.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      canvas.drawCircle(focusPoint!, 24, focusPaint);
+      canvas.drawLine(
+        Offset(focusPoint!.dx - 8, focusPoint!.dy),
+        Offset(focusPoint!.dx + 8, focusPoint!.dy),
+        focusPaint,
+      );
+      canvas.drawLine(
+        Offset(focusPoint!.dx, focusPoint!.dy - 8),
+        Offset(focusPoint!.dx, focusPoint!.dy + 8),
+        focusPaint,
       );
     }
 
@@ -197,6 +228,9 @@ class ScannerOverlayPainter extends CustomPainter {
     return oldDelegate.animationValue != animationValue ||
         oldDelegate.scanMode != scanMode ||
         oldDelegate.accentColor != accentColor ||
-        oldDelegate.theme != theme;
+        oldDelegate.theme != theme ||
+        oldDelegate.focusPoint != focusPoint ||
+        oldDelegate.isDetected != isDetected;
   }
 }
+

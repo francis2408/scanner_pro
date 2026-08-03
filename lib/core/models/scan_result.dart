@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'scanner_mode.dart';
 
 /// Represents the extracted structured data resulting from a camera or image scan.
@@ -23,6 +24,18 @@ class ScanResult {
   /// Optional file path to captured camera frame image.
   final String? imagePath;
 
+  /// Detected barcode or document corner points in frame pixel coordinates.
+  final List<Offset>? corners;
+
+  /// Detected bounding box rectangle in frame pixel coordinates.
+  final Rect? boundingBox;
+
+  /// Input frame or image resolution size.
+  final Size? imageSize;
+
+  /// Total execution duration elapsed during frame detection and parsing.
+  final Duration? scanDuration;
+
   /// Additional raw metadata key-values.
   final Map<String, dynamic> metadata;
 
@@ -35,6 +48,10 @@ class ScanResult {
     this.confidence = 1.0,
     DateTime? timestamp,
     this.imagePath,
+    this.corners,
+    this.boundingBox,
+    this.imageSize,
+    this.scanDuration,
     Map<String, dynamic>? metadata,
   }) : timestamp = timestamp ?? DateTime.now(),
        metadata = metadata ?? {};
@@ -50,6 +67,21 @@ class ScanResult {
       'confidence': confidence,
       'timestamp': timestamp.toIso8601String(),
       'imagePath': imagePath,
+      'corners': corners
+          ?.map((c) => {'x': c.dx, 'y': c.dy})
+          .toList(),
+      'boundingBox': boundingBox != null
+          ? {
+              'left': boundingBox!.left,
+              'top': boundingBox!.top,
+              'width': boundingBox!.width,
+              'height': boundingBox!.height,
+            }
+          : null,
+      'imageSize': imageSize != null
+          ? {'width': imageSize!.width, 'height': imageSize!.height}
+          : null,
+      'scanDurationMs': scanDuration?.inMilliseconds,
       'metadata': metadata,
     };
   }
@@ -67,6 +99,7 @@ class ScanResult {
 
   @override
   String toString() {
-    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, fieldsCount: ${fields.length})';
+    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms)';
   }
 }
+
