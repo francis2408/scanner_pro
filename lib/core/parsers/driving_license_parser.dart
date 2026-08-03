@@ -3,6 +3,15 @@ import '../models/scanner_mode.dart';
 
 /// AAMVA PDF417 and Regional Driving License OCR parser.
 class DrivingLicenseParser {
+  static final RegExp _lineSplitRegex = RegExp(r'[\r\n]+');
+  static final RegExp _dlRegex = RegExp(
+    r'\b[A-Z]{2}[-\s/]?\d{2}[-\s/]?\d{4}[-\s/]?\d{7}\b|\b[A-Z]{2}\d{13}\b',
+    caseSensitive: false,
+  );
+  static final RegExp _dateRegex = RegExp(
+    r'\b\d{2}[/-]\d{2}[/-]\d{4}\b|\b\d{4}[/-]\d{2}[/-]\d{2}\b',
+  );
+
   /// Parses raw PDF417 or OCR text input from a Driving License.
   static ScanResult parse(String rawText) {
     if (rawText.contains('@') ||
@@ -25,20 +34,25 @@ class DrivingLicenseParser {
       'DAD',
       'DCB',
       'DCD',
+      'DCE',
+      'DCF',
+      'DCG',
+      'DAU',
+      'DAY',
+      'DAI',
+      'DAJ',
+      'DAK',
       'DBB',
       'DBA',
       'DBD',
       'DBC',
       'DAG',
-      'DAI',
-      'DAJ',
-      'DAK',
       'DAR',
       'DAS',
       'DAT',
     ];
 
-    final lines = rawText.split(RegExp(r'[\r\n]+'));
+    final lines = rawText.split(_lineSplitRegex);
     for (final line in lines) {
       if (line.trim().isEmpty) continue;
       for (final key in keys) {
@@ -52,11 +66,35 @@ class DrivingLicenseParser {
 
     final hasDlNum = fields.containsKey('License Number');
 
+    if (fields.containsKey('Date of Birth')) {
+      final dobStr = fields['Date of Birth']!;
+      final parts = dobStr.split('-');
+      if (parts.length == 3) {
+        final yr = int.tryParse(parts[0]);
+        if (yr != null) {
+          fields['Calculated Age'] = '${DateTime.now().year - yr} years';
+        }
+      }
+    }
+
+    if (fields.containsKey('Expiration Date')) {
+      final expStr = fields['Expiration Date']!;
+      final expDate = DateTime.tryParse(expStr);
+      if (expDate != null) {
+        if (expDate.isAfter(DateTime.now())) {
+          final days = expDate.difference(DateTime.now()).inDays;
+          fields['License Status'] = 'Active ($days days remaining) ✓';
+        } else {
+          fields['License Status'] = 'Expired ✗';
+        }
+      }
+    }
+
     return ScanResult(
       mode: ScanMode.drivingLicense,
       rawValue: rawText,
       isValid: hasDlNum,
-      confidence: hasDlNum ? 0.98 : 0.80,
+      confidence: hasDlNum ? 0.99 : 0.80,
       fields: fields,
     );
   }
@@ -67,8 +105,8 @@ class DrivingLicenseParser {
     String value,
   ) {
     String cleanVal = value;
-    if (cleanVal.length > 25) {
-      cleanVal = cleanVal.substring(0, 25);
+    if (cleanVal.length > 30) {
+      cleanVal = cleanVal.substring(0, 30);
     }
 
     switch (code) {
@@ -113,26 +151,38 @@ class DrivingLicenseParser {
       case 'DAK':
         fields['Zip Code'] = cleanVal;
         break;
+      case 'DAU':
+        fields['Height'] = cleanVal;
+        break;
+      case 'DAY':
+        fields['Eye Color'] = cleanVal;
+        break;
+      case 'DCE':
+        fields['Restrictions'] = cleanVal;
+        break;
+      case 'DCF':
+        fields['Document Discriminator'] = cleanVal;
+        break;
+      case 'DCG':
+        fields['Vehicle Class'] = cleanVal;
+        break;
     }
   }
 
   static ScanResult _parseDlOcr(String rawText) {
-    final dlRegex = RegExp(
-      r'\b[A-Z]{2}[-\s/]?\d{2}[-\s/]?\d{4}[-\s/]?\d{7}\b|\b[A-Z]{2}\d{13}\b',
-      caseSensitive: false,
-    );
-    final match = dlRegex.firstMatch(rawText);
+    final match = _dlRegex.firstMatch(rawText);
 
     final fields = <String, String>{'Document Type': 'Driving License (OCR)'};
 
     if (match != null) {
-      fields['DL Number'] = match.group(0)!;
+      final rawDl = match.group(0)!;
+      fields['DL Number'] = rawDl;
+      fields['License Number'] = rawDl;
+      final stateCode = rawDl.substring(0, 2).toUpperCase();
+      fields['Issuing State Code'] = stateCode;
     }
 
-    final dateRegex = RegExp(
-      r'\b\d{2}[/-]\d{2}[/-]\d{4}\b|\b\d{4}[/-]\d{2}[/-]\d{2}\b',
-    );
-    final dateMatches = dateRegex
+    final dateMatches = _dateRegex
         .allMatches(rawText)
         .map((m) => m.group(0)!)
         .toList();
@@ -145,7 +195,7 @@ class DrivingLicenseParser {
     }
 
     final lines = rawText
-        .split(RegExp(r'[\r\n]+'))
+        .split(_lineSplitRegex)
         .map((l) => l.trim())
         .toList();
     for (final line in lines) {
@@ -157,13 +207,13 @@ class DrivingLicenseParser {
       }
     }
 
-    final isValid = fields.containsKey('DL Number');
+    final isValid = fields.containsKey('DL Number') || fields.containsKey('License Number');
 
     return ScanResult(
       mode: ScanMode.drivingLicense,
       rawValue: rawText,
       isValid: isValid,
-      confidence: isValid ? 0.92 : 0.45,
+      confidence: isValid ? 0.94 : 0.45,
       fields: fields,
     );
   }

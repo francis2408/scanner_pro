@@ -3,6 +3,11 @@ import '../models/scanner_mode.dart';
 
 /// ISO 3779 17-character Vehicle Identification Number (VIN) parser and check digit verifier.
 class VinParser {
+  static final RegExp _vinRegex = RegExp(
+    r'\b[A-HJ-NPR-Z0-9]{17}\b',
+    caseSensitive: false,
+  );
+
   static const Map<String, int> _charValues = {
     'A': 1,
     'B': 2,
@@ -64,28 +69,46 @@ class VinParser {
     '1FT': 'Ford Truck (USA)',
     '1FA': 'Ford Passenger (USA)',
     '1G1': 'Chevrolet (USA)',
+    '1G6': 'Cadillac (USA)',
     '1J4': 'Jeep (USA)',
+    '1N4': 'Nissan (USA)',
+    '1VW': 'Volkswagen (USA)',
     '2G1': 'Chevrolet (Canada)',
+    '2HG': 'Honda (Canada)',
+    '2T1': 'Toyota (Canada)',
     '3VW': 'Volkswagen (Mexico)',
+    '3FADP': 'Ford (Mexico)',
+    '5YJ': 'Tesla Motors (USA)',
+    '7SA': 'Tesla Inc (USA)',
     'JHM': 'Honda (Japan)',
     'JH4': 'Acura (Japan)',
     'JT2': 'Toyota (Japan)',
     'JNK': 'Infiniti (Japan)',
     'JN1': 'Nissan (Japan)',
+    'JM1': 'Mazda (Japan)',
+    'JS1': 'Suzuki (Japan)',
     'WBA': 'BMW (Germany)',
     'WBY': 'BMW i (Germany)',
     'WAU': 'Audi (Germany)',
     'WDD': 'Mercedes-Benz (Germany)',
     'WP0': 'Porsche (Germany)',
+    'WVW': 'Volkswagen (Germany)',
     'SAL': 'Land Rover (UK)',
     'SAJ': 'Jaguar (UK)',
+    'SCC': 'Lotus (UK)',
     'VF1': 'Renault (France)',
+    'VF3': 'Peugeot (France)',
     'ZFF': 'Ferrari (Italy)',
+    'ZAR': 'Alfa Romeo (Italy)',
     'KNA': 'Kia (South Korea)',
     'KMH': 'Hyundai (South Korea)',
+    'KPT': 'SsangYong (South Korea)',
     'MA3': 'Maruti Suzuki (India)',
     'ME4': 'Mahindra (India)',
+    'MAT': 'Tata Motors (India)',
     'MBH': 'Nissan (India)',
+    'LVS': 'Ford (China)',
+    'LC0': 'BYD (China)',
   };
 
   /// Calculates the Position 9 check digit for a 17-character VIN.
@@ -141,8 +164,7 @@ class VinParser {
 
   /// Parses raw text into a vehicle VIN [ScanResult].
   static ScanResult parse(String rawText) {
-    final vinRegex = RegExp(r'\b[A-HJ-NPR-Z0-9]{17}\b', caseSensitive: false);
-    final match = vinRegex.firstMatch(rawText.toUpperCase());
+    final match = _vinRegex.firstMatch(rawText.toUpperCase());
 
     if (match != null) {
       final vin = match.group(0)!;
@@ -153,6 +175,8 @@ class VinParser {
       final wmi = vin.substring(0, 3);
       final manufacturer = _wmiMap[wmi] ?? 'Region/Manufacturer Code: $wmi';
       final modelYear = decodeModelYear(vin[9]);
+      final vds = vin.substring(3, 8);
+      final vis = vin.substring(9, 17);
 
       return ScanResult(
         mode: ScanMode.vin,
@@ -164,7 +188,13 @@ class VinParser {
           'VIN Number': vin,
           'Check Digit (Pos 9)':
               '$actualCheckDigit (${isCheckDigitValid ? 'Valid ✓' : 'Invalid ✗'})',
+          'Check Digit Verification': isCheckDigitValid
+              ? 'ISO 3779 Modulo 11 Validated ✓'
+              : 'Checksum Mismatch ✗',
           'Manufacturer / WMI': manufacturer,
+          'World Manufacturer Identifier (WMI)': wmi,
+          'Vehicle Descriptor Section (VDS)': vds,
+          'Vehicle Identifier Section (VIS)': vis,
           'Model Year (Pos 10)': modelYear,
           'Plant Code (Pos 11)': vin[10],
           'Sequential Number': vin.substring(11, 17),

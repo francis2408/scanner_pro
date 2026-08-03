@@ -3,6 +3,25 @@ import '../models/scanner_mode.dart';
 
 /// Indian Aadhaar Card Verhoeff D10 checksum and Secure XML/OCR parser.
 class AadhaarParser {
+  static final RegExp _uidRegex = RegExp(r'\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b');
+  static final RegExp _dobHeaderRegex = RegExp(
+    r'DOB|Date of Birth',
+    caseSensitive: false,
+  );
+  static final RegExp _dobMatchRegex = RegExp(r'\d{2}/\d{2}/\d{4}');
+  static final RegExp _yobHeaderRegex = RegExp(
+    r'Year of Birth|YOB',
+    caseSensitive: false,
+  );
+  static final RegExp _yobMatchRegex = RegExp(r'\d{4}');
+  static final RegExp _genderRegex = RegExp(
+    r'\bMale\b|\bFemale\b|\bTRANSGENDER\b',
+    caseSensitive: false,
+  );
+  static final RegExp _pincodeRegex = RegExp(r'\b[1-9]\d{5}\b');
+  static final RegExp _xmlAttrRegex = RegExp(r'(\w+)="([^"]*)"');
+  static final RegExp _lineSplitRegex = RegExp(r'[\r\n]+');
+
   static const List<List<int>> _d = [
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
@@ -53,8 +72,7 @@ class AadhaarParser {
       return _parseXmlQr(rawData);
     }
 
-    final uidRegex = RegExp(r'\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b');
-    final uidMatch = uidRegex.firstMatch(rawData);
+    final uidMatch = _uidRegex.firstMatch(rawData);
 
     if (uidMatch != null) {
       final rawUid = uidMatch.group(0)!;
@@ -66,39 +84,49 @@ class AadhaarParser {
         'Aadhaar Number':
             '${cleanUid.substring(0, 4)} ${cleanUid.substring(4, 8)} ${cleanUid.substring(8, 12)}',
         'Verhoeff Checksum': isVerhoeffValid ? 'Valid ✓' : 'Invalid ✗',
+        'Verification Status': isVerhoeffValid
+            ? 'UIDAI Verhoeff D10 Validated ✓'
+            : 'Checksum Mismatch ✗',
       };
 
       final lines = rawData
-          .split(RegExp(r'[\r\n]+'))
+          .split(_lineSplitRegex)
           .map((l) => l.trim())
           .toList();
       for (final line in lines) {
-        if (RegExp(r'DOB|Date of Birth', caseSensitive: false).hasMatch(line)) {
-          final dobMatch = RegExp(r'\d{2}/\d{2}/\d{4}').firstMatch(line);
+        if (_dobHeaderRegex.hasMatch(line)) {
+          final dobMatch = _dobMatchRegex.firstMatch(line);
           if (dobMatch != null) {
             fields['Date of Birth'] = dobMatch.group(0)!;
+            final yr = int.tryParse(dobMatch.group(0)!.substring(6));
+            if (yr != null) {
+              fields['Calculated Age'] = '${DateTime.now().year - yr} years';
+            }
           }
-        } else if (RegExp(
-          r'Year of Birth|YOB',
-          caseSensitive: false,
-        ).hasMatch(line)) {
-          final yobMatch = RegExp(r'\d{4}').firstMatch(line);
+        } else if (_yobHeaderRegex.hasMatch(line)) {
+          final yobMatch = _yobMatchRegex.firstMatch(line);
           if (yobMatch != null) {
             fields['Year of Birth'] = yobMatch.group(0)!;
+            final yr = int.tryParse(yobMatch.group(0)!);
+            if (yr != null) {
+              fields['Approximate Age'] = '${DateTime.now().year - yr} years';
+            }
           }
-        } else if (RegExp(
-          r'\bMale\b|\bFemale\b|\bTRANSGENDER\b',
-          caseSensitive: false,
-        ).hasMatch(line)) {
+        } else if (_genderRegex.hasMatch(line)) {
           fields['Gender'] = line;
         }
+      }
+
+      final pincodeMatch = _pincodeRegex.firstMatch(rawData);
+      if (pincodeMatch != null) {
+        fields['Pincode'] = pincodeMatch.group(0)!;
       }
 
       return ScanResult(
         mode: ScanMode.aadhaar,
         rawValue: rawData,
         isValid: isVerhoeffValid,
-        confidence: isVerhoeffValid ? 0.95 : 0.70,
+        confidence: isVerhoeffValid ? 0.96 : 0.70,
         fields: fields,
       );
     }
@@ -115,8 +143,7 @@ class AadhaarParser {
   static ScanResult _parseXmlQr(String xmlStr) {
     final fields = <String, String>{'Card Type': 'Aadhaar Secure QR XML'};
 
-    final attrRegex = RegExp(r'(\w+)="([^"]*)"');
-    final matches = attrRegex.allMatches(xmlStr);
+    final matches = _xmlAttrRegex.allMatches(xmlStr);
 
     for (final m in matches) {
       final key = m.group(1)!;
@@ -138,6 +165,10 @@ class AadhaarParser {
           break;
         case 'yob':
           fields['Year of Birth'] = val;
+          final yr = int.tryParse(val);
+          if (yr != null) {
+            fields['Approximate Age'] = '${DateTime.now().year - yr} years';
+          }
           break;
         case 'co':
           fields['C/O'] = val;
@@ -157,12 +188,16 @@ class AadhaarParser {
 
     final uid = fields['Aadhaar Number'] ?? '';
     final isValid = uid.isNotEmpty ? validateAadhaarVerhoeff(uid) : true;
+    fields['Verhoeff Checksum'] = isValid ? 'Valid ✓' : 'Invalid ✗';
+    fields['Verification Status'] = isValid
+        ? 'UIDAI Verhoeff D10 Validated ✓'
+        : 'Checksum Mismatch ✗';
 
     return ScanResult(
       mode: ScanMode.aadhaar,
       rawValue: xmlStr,
       isValid: isValid,
-      confidence: 0.98,
+      confidence: 0.99,
       fields: fields,
     );
   }

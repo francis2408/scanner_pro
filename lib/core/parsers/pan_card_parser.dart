@@ -3,6 +3,15 @@ import '../models/scanner_mode.dart';
 
 /// Indian Income Tax PAN (Permanent Account Number) Card parser & fuzzy OCR engine.
 class PanCardParser {
+  static final RegExp _panRegex = RegExp(r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b');
+  static final RegExp _nonAlphanumericRegex = RegExp(r'[^A-Z0-9]');
+  static final RegExp _alphaOnlyRegex = RegExp(r'^[A-Z]$');
+  static final RegExp _digitOnlyRegex = RegExp(r'^[0-9]$');
+  static final RegExp _allCapsRegex = RegExp(r'^[A-Z\s]+$');
+  static final RegExp _dobRegex = RegExp(r'\b\d{2}/\d{2}/\d{4}\b');
+  static final RegExp _dobMatchRegex = RegExp(r'\d{2}/\d{2}/\d{4}');
+  static final RegExp _lineSplitRegex = RegExp(r'[\r\n]+');
+
   static const Map<String, String> _holderStatusMap = {
     'P': 'Individual / Person',
     'C': 'Company',
@@ -13,6 +22,7 @@ class PanCardParser {
     'B': 'Body of Individuals (BOI)',
     'L': 'Local Authority',
     'J': 'Artificial Juridical Person',
+    'G': 'Government Agency / Department',
   };
 
   /// Decodes 4th character status code to Taxpayer Category name.
@@ -22,13 +32,12 @@ class PanCardParser {
   }
 
   static String? _extractPanCandidate(String uppercaseText) {
-    final panRegex = RegExp(r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b');
-    Match? match = panRegex.firstMatch(uppercaseText);
+    Match? match = _panRegex.firstMatch(uppercaseText);
     if (match != null) return match.group(0);
 
-    final lines = uppercaseText.split(RegExp(r'[\r\n]+'));
+    final lines = uppercaseText.split(_lineSplitRegex);
     for (final line in lines) {
-      final cleanLine = line.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final cleanLine = line.replaceAll(_nonAlphanumericRegex, '');
       if (cleanLine.length >= 10) {
         for (int i = 0; i <= cleanLine.length - 10; i++) {
           final window = cleanLine.substring(i, i + 10);
@@ -40,7 +49,7 @@ class PanCardParser {
             if (chars[c] == '1') chars[c] = 'I';
             if (chars[c] == '5') chars[c] = 'S';
             if (chars[c] == '8') chars[c] = 'B';
-            if (!RegExp(r'^[A-Z]$').hasMatch(chars[c])) {
+            if (!_alphaOnlyRegex.hasMatch(chars[c])) {
               isValid5 = false;
               break;
             }
@@ -53,7 +62,7 @@ class PanCardParser {
             if (chars[c] == 'I' || chars[c] == 'L') chars[c] = '1';
             if (chars[c] == 'S') chars[c] = '5';
             if (chars[c] == 'B') chars[c] = '8';
-            if (!RegExp(r'^[0-9]$').hasMatch(chars[c])) {
+            if (!_digitOnlyRegex.hasMatch(chars[c])) {
               isValid4 = false;
               break;
             }
@@ -62,10 +71,10 @@ class PanCardParser {
 
           if (chars[9] == '0') chars[9] = 'O';
           if (chars[9] == '1') chars[9] = 'I';
-          if (!RegExp(r'^[A-Z]$').hasMatch(chars[9])) continue;
+          if (!_alphaOnlyRegex.hasMatch(chars[9])) continue;
 
           final candidate = chars.join('');
-          if (panRegex.hasMatch(candidate)) {
+          if (_panRegex.hasMatch(candidate)) {
             return candidate;
           }
         }
@@ -82,6 +91,7 @@ class PanCardParser {
     if (foundPan != null) {
       final panNumber = foundPan;
       final statusChar = panNumber[3];
+      final surnameInitial = panNumber[4];
       final holderStatus =
           _holderStatusMap[statusChar] ?? 'Taxpayer Category ($statusChar)';
 
@@ -89,18 +99,22 @@ class PanCardParser {
         'Document Type': 'Income Tax PAN Card (India)',
         'PAN Number': panNumber,
         'Holder Category': holderStatus,
-        'Surname Initial': panNumber[4],
+        'Taxpayer Status Code': 'Code $statusChar ($holderStatus)',
+        'Surname Initial': surnameInitial,
+        'Sequential Numbering': panNumber.substring(5, 9),
+        'Checksum Control Character': panNumber[9],
+        'PAN Syntax Status': 'Valid 10-Character Structure ✓',
       };
 
       final lines = rawText
-          .split(RegExp(r'[\r\n]+'))
+          .split(_lineSplitRegex)
           .map((l) => l.trim())
           .toList();
 
       for (int i = 0; i < lines.length; i++) {
         final line = lines[i];
-        if (RegExp(r'\b\d{2}/\d{2}/\d{4}\b').hasMatch(line)) {
-          final dobMatch = RegExp(r'\d{2}/\d{2}/\d{4}').firstMatch(line);
+        if (_dobRegex.hasMatch(line)) {
+          final dobMatch = _dobMatchRegex.firstMatch(line);
           if (dobMatch != null) fields['Date of Birth'] = dobMatch.group(0)!;
         } else if (line.contains('GOVT OF INDIA') ||
             line.contains('INCOME TAX') ||
@@ -109,7 +123,7 @@ class PanCardParser {
         } else if (i < lines.length &&
             !line.contains(panNumber) &&
             line.length >= 3 &&
-            RegExp(r'^[A-Z\s]+$').hasMatch(line)) {
+            _allCapsRegex.hasMatch(line)) {
           if (!fields.containsKey('Holder Name')) {
             fields['Holder Name'] = line;
           } else if (!fields.containsKey("Father's Name")) {
@@ -122,7 +136,7 @@ class PanCardParser {
         mode: ScanMode.pan,
         rawValue: rawText,
         isValid: true,
-        confidence: 0.96,
+        confidence: 0.98,
         fields: fields,
         metadata: {'panNumber': panNumber, 'statusChar': statusChar},
       );
