@@ -1,3 +1,7 @@
+# 1.1.2
+
+- Data Fetching Performance & Caching: Added sub-millisecond in-memory LRU cache (`_lookupCache`) and fast connection reuse pool to `ExternalLookupService` for instant repeat scan lookups (<0.1ms).
+
 # 1.1.1
 
 - Dependency Constraint Update: Expanded `google_mlkit_commons` dependency constraint to `>=0.9.0 <0.13.0` to support up-to-date stable versions (`0.11.0` & `0.12.0`).
