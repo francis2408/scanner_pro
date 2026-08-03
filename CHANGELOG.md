@@ -1,3 +1,7 @@
+# 1.1.3
+
+- Pub.dev Metadata & Repository Searchability: Updated `pubspec.yaml` description and `README.md` with explicit repository badges (`francis2408/scanner_pro`), architectural decoupling documentation, and high-throughput benchmark scores.
+
 # 1.1.2
 
 - Data Fetching Performance & Caching: Added sub-millisecond in-memory LRU cache (`_lookupCache`) and fast connection reuse pool to `ExternalLookupService` for instant repeat scan lookups (<0.1ms).
