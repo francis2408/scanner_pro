@@ -108,6 +108,9 @@ class UniversalScannerView extends StatefulWidget {
   /// Whether to automatically show [ResultBottomSheet] upon scanning a valid result.
   final bool autoShowResultBottomSheet;
 
+  /// Optional builder signature for creating custom overlay widgets.
+  final Widget Function(BuildContext context, ScannerController controller)? overlayBuilder;
+
   /// Optional callback invoked when a valid [ScanResult] is detected.
   final Function(ScanResult result)? onResultDetected;
 
@@ -143,6 +146,7 @@ class UniversalScannerView extends StatefulWidget {
     this.showLaserBeam,
     this.autoShowResultBottomSheet = true,
     this.onResultDetected,
+    this.overlayBuilder,
   }) : builder = null;
 
   /// Constructs a [UniversalScannerView] using a custom builder to create a custom screen design.
@@ -178,6 +182,7 @@ class UniversalScannerView extends StatefulWidget {
     this.showLaserBeam,
     this.autoShowResultBottomSheet = true,
     this.onResultDetected,
+    this.overlayBuilder,
   });
 
   /// Resolves effective [ScannerUiTheme] merging [theme] and individual color overrides.
@@ -323,23 +328,31 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                       controller: _controller,
                       placeholder: _buildSimulatorViewfinder(currentMode),
                     ),
-                    AnimatedBuilder(
-                      animation: _laserAnimController,
-                      builder: (context, child) {
-                        final lastRes = _controller.lastResult;
-                        return CustomPaint(
-                          painter: ScannerOverlayPainter(
-                            scanMode: currentMode,
-                            animationValue: _laserAnimController.value,
-                            accentColor: _getCategoryColor(currentMode.category),
-                            theme: uiTheme,
-                            focusPoint: _controller.lastTapFocusPoint,
-                            isDetected: lastRes != null && lastRes.isValid,
-                            detectedBoundingBox: lastRes?.boundingBox,
-                          ),
-                        );
-                      },
-                    ),
+                    if (widget.overlayBuilder != null)
+                      widget.overlayBuilder!(context, _controller)
+                    else
+                      AnimatedBuilder(
+                        animation: _laserAnimController,
+                        builder: (context, child) {
+                          final lastRes = _controller.lastResult;
+                          return CustomPaint(
+                            painter: ScannerOverlayPainter(
+                              scanMode: currentMode,
+                              animationValue: _laserAnimController.value,
+                              accentColor: _getCategoryColor(currentMode.category),
+                              theme: uiTheme,
+                              focusPoint: _controller.lastTapFocusPoint,
+                              isDetected: lastRes != null && lastRes.isValid,
+                              detectedBoundingBox: lastRes?.boundingBox,
+                              customScanArea: _controller.options.rectScanArea,
+                              multiBoundingBoxes: lastRes?.multiResults
+                                  ?.map((r) => r.boundingBox)
+                                  .whereType<Rect>()
+                                  .toList(),
+                            ),
+                          );
+                        },
+                      ),
                     Positioned(
                       top: 16,
                       left: 16,

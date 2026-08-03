@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:scannerpro/core/models/scanner_mode.dart';
 import 'package:scannerpro/core/parsers/aadhaar_parser.dart';
 import 'package:scannerpro/core/parsers/driving_license_parser.dart';
+import 'package:scannerpro/core/parsers/face_scanner_parser.dart';
 import 'package:scannerpro/core/parsers/gs1_barcode_parser.dart';
 import 'package:scannerpro/core/parsers/invoice_parser.dart';
 import 'package:scannerpro/core/parsers/mrz_passport_parser.dart';
@@ -160,6 +161,28 @@ TOTAL AMOUNT:                  \$2,006.00''';
         expect(result.mode, equals(mode));
         expect(result.fields, isNotEmpty);
       }
+    });
+
+    test('FaceScannerParser Vision AI Face Metrics & Landmark Verification Test', () {
+      final result = FaceScannerParser.parse(
+        'Face Detected Payload',
+        extraMetadata: {
+          'headEulerAngleY': 1.2,
+          'headEulerAngleZ': 0.5,
+          'headEulerAngleX': -0.8,
+          'smilingProbability': 0.90,
+          'leftEyeOpenProbability': 0.98,
+          'rightEyeOpenProbability': 0.97,
+        },
+      );
+
+      expect(result.isValid, isTrue);
+      expect(result.mode, ScanMode.face);
+      expect(result.confidence, greaterThanOrEqualTo(0.95));
+      expect(result.verifications['faceDetected'], isTrue);
+      expect(result.verifications['isFrontalPose'], isTrue);
+      expect(result.verifications['areEyesOpen'], isTrue);
+      expect(result.fields['Frontal Pose'], contains('Centered'));
     });
   });
 }

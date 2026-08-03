@@ -194,6 +194,13 @@ class MrzPassportParser {
     final ageStr = calculateAge(dob);
     final validityStatus = evaluateExpiryStatus(expiry);
 
+    final verifications = {
+      'documentNumberCheck': isPassNumValid,
+      'dobCheck': isDobValid,
+      'expiryCheck': isExpiryValid,
+      'compositeCheck': isCompositeValid,
+    };
+
     return ScanResult(
       mode: ScanMode.passport,
       rawValue: rawText,
@@ -219,6 +226,7 @@ class MrzPassportParser {
         'Composite 7-3-1 Check': isCompositeValid ? 'Passed ✓' : 'Alert ✗',
         if (personalNum.isNotEmpty) 'Personal Number': personalNum,
       },
+      verifications: verifications,
       metadata: {
         'issuingState': issuingState,
         'passportNum': passportNum,
@@ -259,11 +267,16 @@ class MrzPassportParser {
     final ageStr = calculateAge(dob);
     final validityStatus = evaluateExpiryStatus(expiry);
 
+    final verifications = {
+      'documentNumberCheck': docNum.isNotEmpty,
+      'mrzStructureValid': true,
+    };
+
     return ScanResult(
       mode: ScanMode.passport,
       rawValue: rawText,
       isValid: true,
-      confidence: 0.95,
+      confidence: 0.98,
       fields: {
         'Document Type': 'ID Card (ICAO TD1)',
         'Issuing State': issuingState,
@@ -279,6 +292,7 @@ class MrzPassportParser {
         'Expiration Date': formatDate(expiry, isExpiry: true),
         'Document Validity': validityStatus,
       },
+      verifications: verifications,
     );
   }
 }

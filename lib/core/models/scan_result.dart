@@ -2,6 +2,35 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'scanner_mode.dart';
 
+/// Document image quality metrics calculated during isolate preprocessing.
+class DocumentQualityScore {
+  final double blurScore;
+  final double brightnessScore;
+  final double contrastScore;
+  final double overallQuality;
+  final bool isHighQuality;
+
+  const DocumentQualityScore({
+    required this.blurScore,
+    required this.brightnessScore,
+    required this.contrastScore,
+    required this.overallQuality,
+    required this.isHighQuality,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'blurScore': blurScore,
+        'brightnessScore': brightnessScore,
+        'contrastScore': contrastScore,
+        'overallQuality': overallQuality,
+        'isHighQuality': isHighQuality,
+      };
+
+  @override
+  String toString() =>
+      'DocumentQualityScore(overall: ${(overallQuality * 100).toStringAsFixed(1)}%, highQuality: $isHighQuality)';
+}
+
 /// Represents the extracted structured data resulting from a camera or image scan.
 class ScanResult {
   /// The scanning mode used during extraction.
@@ -55,6 +84,21 @@ class ScanResult {
   /// Additional raw metadata key-values.
   final Map<String, dynamic> metadata;
 
+  /// List of individual scan results detected in a multi-code pass.
+  final List<ScanResult>? multiResults;
+
+  /// Calculated document quality score metrics (blur, contrast, brightness).
+  final DocumentQualityScore? qualityScore;
+
+  /// Confidence score achieved via temporal multi-frame consensus voting (up to 0.99 = 99%).
+  final double? consensusConfidence;
+
+  /// Detailed checklist of verification tests performed and their pass/fail statuses.
+  final Map<String, bool> verifications;
+
+  /// Processing algorithms and enhancements metadata applied to the input image.
+  final Map<String, dynamic> preprocessingInfo;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
@@ -74,9 +118,16 @@ class ScanResult {
     this.imageSize,
     this.scanDuration,
     Map<String, dynamic>? metadata,
+    this.multiResults,
+    this.qualityScore,
+    this.consensusConfidence,
+    Map<String, bool>? verifications,
+    Map<String, dynamic>? preprocessingInfo,
   })  : timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
-        metadata = metadata ?? {};
+        metadata = metadata ?? {},
+        verifications = verifications ?? const {},
+        preprocessingInfo = preprocessingInfo ?? const {};
 
   /// Creates a copy of [ScanResult] with updated fields.
   ScanResult copyWith({
@@ -97,6 +148,11 @@ class ScanResult {
     Size? imageSize,
     Duration? scanDuration,
     Map<String, dynamic>? metadata,
+    List<ScanResult>? multiResults,
+    DocumentQualityScore? qualityScore,
+    double? consensusConfidence,
+    Map<String, bool>? verifications,
+    Map<String, dynamic>? preprocessingInfo,
   }) {
     return ScanResult(
       mode: mode ?? this.mode,
@@ -116,6 +172,11 @@ class ScanResult {
       imageSize: imageSize ?? this.imageSize,
       scanDuration: scanDuration ?? this.scanDuration,
       metadata: metadata ?? this.metadata,
+      multiResults: multiResults ?? this.multiResults,
+      qualityScore: qualityScore ?? this.qualityScore,
+      consensusConfidence: consensusConfidence ?? this.consensusConfidence,
+      verifications: verifications ?? this.verifications,
+      preprocessingInfo: preprocessingInfo ?? this.preprocessingInfo,
     );
   }
 
@@ -157,6 +218,10 @@ class ScanResult {
           : null,
       'scanDurationMs': scanDuration?.inMilliseconds,
       'metadata': metadata,
+      'qualityScore': qualityScore?.toJson(),
+      'consensusConfidence': consensusConfidence,
+      'verifications': verifications,
+      'preprocessingInfo': preprocessingInfo,
     };
   }
 
@@ -173,7 +238,7 @@ class ScanResult {
 
   @override
   String toString() {
-    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, format: $format, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms)';
+    return 'ScanResult(mode: ${mode.name}, isValid: $isValid, confidence: $confidence, format: $format, fieldsCount: ${fields.length}, duration: ${scanDuration?.inMilliseconds ?? 0}ms, quality: ${qualityScore?.overallQuality.toStringAsFixed(2) ?? 'N/A'})';
   }
 }
 

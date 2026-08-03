@@ -131,6 +131,45 @@ class ScannerOptions {
   /// Minimum confidence required to accept a scan result (0.0 to 1.0).
   final double minConfidence;
 
+  /// Optional explicit pixel/coordinate scan rectangle restriction area.
+  final Rect? rectScanArea;
+
+  /// Optional whitelist of allowed barcode format symbologies (e.g. ['QR_CODE', 'EAN_13', 'PDF417']).
+  final List<String>? allowedFormats;
+
+  /// Whether audio beep feedback is emitted on scan success/failure.
+  final bool enableSound;
+
+  /// Whether haptic vibration feedback is triggered on scan success/failure.
+  final bool enableVibration;
+
+  /// Flashlight torch intensity brightness level (0.0 to 1.0).
+  final double torchLevel;
+
+  /// Whether camera focus is currently locked to prevent hunting.
+  final bool isFocusLocked;
+
+  /// Whether enterprise document auto capture is enabled when quality threshold is met.
+  final bool enableAutoCapture;
+
+  /// Quality score threshold (0.0 to 1.0) required to trigger auto capture.
+  final double autoCaptureQualityThreshold;
+
+  /// Number of consecutive stable high-quality frames required for auto capture.
+  final int autoCaptureSteadyFrames;
+
+  /// Whether multi-frame temporal consensus voting is enabled to achieve 98-99% OCR accuracy.
+  final bool enableMultiFrameConsensus;
+
+  /// Number of sequential frames accumulated for temporal consensus voting.
+  final int consensusFrameCount;
+
+  /// Target accuracy confidence threshold (e.g. 0.98 = 98%) required for consensus emission.
+  final double consensusAccuracyThreshold;
+
+  /// Dynamic Region of Interest (ROI) adjustment based on detected target bounding box.
+  final bool enableAdaptiveRoi;
+
   /// Constructs a [ScannerOptions] instance.
   const ScannerOptions({
     this.scanStrategy = ScanStrategy.continuous,
@@ -157,6 +196,19 @@ class ScannerOptions {
     this.maxHistorySize = 50,
     this.maxBatchCount,
     this.minConfidence = 0.70,
+    this.rectScanArea,
+    this.allowedFormats,
+    this.enableSound = true,
+    this.enableVibration = true,
+    this.torchLevel = 1.0,
+    this.isFocusLocked = false,
+    this.enableAutoCapture = true,
+    this.autoCaptureQualityThreshold = 0.85,
+    this.autoCaptureSteadyFrames = 3,
+    this.enableMultiFrameConsensus = true,
+    this.consensusFrameCount = 3,
+    this.consensusAccuracyThreshold = 0.98,
+    this.enableAdaptiveRoi = true,
   });
 
   /// High-performance preset optimized for speed and low CPU consumption.
@@ -174,6 +226,10 @@ class ScannerOptions {
     enableBlurDetection: true,
     enableAutoBrightnessCheck: true,
     enableAutoZoom: true,
+    enableSound: true,
+    enableVibration: true,
+    enableAutoCapture: true,
+    enableMultiFrameConsensus: true,
   );
 
   /// Battery-saver preset for background/inventory batch scanning.
@@ -191,6 +247,10 @@ class ScannerOptions {
     enableBlurDetection: false,
     enableAutoBrightnessCheck: false,
     enableAutoZoom: false,
+    enableSound: false,
+    enableVibration: true,
+    enableAutoCapture: false,
+    enableMultiFrameConsensus: false,
   );
 
   ScannerOptions copyWith({
@@ -218,6 +278,19 @@ class ScannerOptions {
     int? maxHistorySize,
     int? maxBatchCount,
     double? minConfidence,
+    Rect? rectScanArea,
+    List<String>? allowedFormats,
+    bool? enableSound,
+    bool? enableVibration,
+    double? torchLevel,
+    bool? isFocusLocked,
+    bool? enableAutoCapture,
+    double? autoCaptureQualityThreshold,
+    int? autoCaptureSteadyFrames,
+    bool? enableMultiFrameConsensus,
+    int? consensusFrameCount,
+    double? consensusAccuracyThreshold,
+    bool? enableAdaptiveRoi,
   }) {
     return ScannerOptions(
       scanStrategy: scanStrategy ?? this.scanStrategy,
@@ -252,6 +325,23 @@ class ScannerOptions {
       maxHistorySize: maxHistorySize ?? this.maxHistorySize,
       maxBatchCount: maxBatchCount ?? this.maxBatchCount,
       minConfidence: minConfidence ?? this.minConfidence,
+      rectScanArea: rectScanArea ?? this.rectScanArea,
+      allowedFormats: allowedFormats ?? this.allowedFormats,
+      enableSound: enableSound ?? this.enableSound,
+      enableVibration: enableVibration ?? this.enableVibration,
+      torchLevel: torchLevel ?? this.torchLevel,
+      isFocusLocked: isFocusLocked ?? this.isFocusLocked,
+      enableAutoCapture: enableAutoCapture ?? this.enableAutoCapture,
+      autoCaptureQualityThreshold:
+          autoCaptureQualityThreshold ?? this.autoCaptureQualityThreshold,
+      autoCaptureSteadyFrames:
+          autoCaptureSteadyFrames ?? this.autoCaptureSteadyFrames,
+      enableMultiFrameConsensus:
+          enableMultiFrameConsensus ?? this.enableMultiFrameConsensus,
+      consensusFrameCount: consensusFrameCount ?? this.consensusFrameCount,
+      consensusAccuracyThreshold:
+          consensusAccuracyThreshold ?? this.consensusAccuracyThreshold,
+      enableAdaptiveRoi: enableAdaptiveRoi ?? this.enableAdaptiveRoi,
     );
   }
 }

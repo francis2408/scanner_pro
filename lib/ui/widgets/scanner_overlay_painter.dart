@@ -26,6 +26,12 @@ class ScannerOverlayPainter extends CustomPainter {
   /// Detected target bounding box rectangle relative to screen coordinates.
   final Rect? detectedBoundingBox;
 
+  /// Custom explicit scan rectangle area cutout.
+  final Rect? customScanArea;
+
+  /// List of bounding boxes for multiple detected codes.
+  final List<Rect>? multiBoundingBoxes;
+
   /// Constructs a new [ScannerOverlayPainter].
   ScannerOverlayPainter({
     required this.scanMode,
@@ -35,6 +41,8 @@ class ScannerOverlayPainter extends CustomPainter {
     this.focusPoint,
     this.isDetected = false,
     this.detectedBoundingBox,
+    this.customScanArea,
+    this.multiBoundingBoxes,
   });
 
   @override
@@ -48,18 +56,28 @@ class ScannerOverlayPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
-    final targetRatio = scanMode.targetAspectRatio;
-    double rectWidth = width * 0.85;
-    double rectHeight = rectWidth / targetRatio;
+    late Rect scanRect;
+    if (customScanArea != null) {
+      scanRect = customScanArea!;
+    } else {
+      final targetRatio = scanMode.targetAspectRatio;
+      double calcWidth = width * 0.85;
+      double calcHeight = calcWidth / targetRatio;
 
-    if (rectHeight > height * 0.6) {
-      rectHeight = height * 0.6;
-      rectWidth = rectHeight * targetRatio;
+      if (calcHeight > height * 0.6) {
+        calcHeight = height * 0.6;
+        calcWidth = calcHeight * targetRatio;
+      }
+
+      final calcLeft = (width - calcWidth) / 2;
+      final calcTop = (height - calcHeight) / 2;
+      scanRect = Rect.fromLTWH(calcLeft, calcTop, calcWidth, calcHeight);
     }
 
-    final rectLeft = (width - rectWidth) / 2;
-    final rectTop = (height - rectHeight) / 2;
-    final scanRect = Rect.fromLTWH(rectLeft, rectTop, rectWidth, rectHeight);
+    final double rectLeft = scanRect.left;
+    final double rectTop = scanRect.top;
+    final double rectWidth = scanRect.width;
+    final double rectHeight = scanRect.height;
 
     final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, width, height));
 

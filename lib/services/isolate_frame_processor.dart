@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import '../core/models/scan_result.dart';
 import '../core/models/scanner_options.dart';
 
 /// Data structure carrying frame processing arguments into isolate task.
@@ -42,6 +43,7 @@ class IsolateFrameResult {
   final int frameHash;
   final double contrastScore;
   final List<String> enhancementsApplied;
+  final DocumentQualityScore qualityScore;
 
   const IsolateFrameResult({
     required this.processedBytes,
@@ -57,6 +59,7 @@ class IsolateFrameResult {
     this.frameHash = 0,
     this.contrastScore = 1.0,
     this.enhancementsApplied = const [],
+    required this.qualityScore,
   });
 }
 
@@ -234,6 +237,21 @@ class IsolateFrameProcessor {
       }
     }
 
+    // 5. Calculate Enterprise Document Quality Score
+    final blurNorm = (blurScore / 150.0).clamp(0.0, 1.0);
+    final brightnessNorm = (1.0 - ((luminosity - 0.5).abs() * 2.0)).clamp(0.0, 1.0);
+    final contrastNorm = contrastScore.clamp(0.0, 1.0);
+    final overallQuality = (blurNorm * 0.5) + (brightnessNorm * 0.25) + (contrastNorm * 0.25);
+    final isHighQuality = overallQuality >= 0.70 && !isBlurry && !isMotionDetected;
+
+    final qualityScore = DocumentQualityScore(
+      blurScore: blurScore,
+      brightnessScore: luminosity,
+      contrastScore: contrastScore,
+      overallQuality: overallQuality,
+      isHighQuality: isHighQuality,
+    );
+
     return IsolateFrameResult(
       processedBytes: workingBytes,
       averageLuminosity: luminosity,
@@ -248,6 +266,7 @@ class IsolateFrameProcessor {
       frameHash: currentFrameHash,
       contrastScore: contrastScore,
       enhancementsApplied: enhancements,
+      qualityScore: qualityScore,
     );
   }
 

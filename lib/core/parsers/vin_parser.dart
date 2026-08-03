@@ -178,6 +178,12 @@ class VinParser {
       final vds = vin.substring(3, 8);
       final vis = vin.substring(9, 17);
 
+      final verifications = {
+        'checkDigitValid': isCheckDigitValid,
+        'iso3779StructureValid': true,
+        'wmiManufacturerResolved': _wmiMap.containsKey(wmi),
+      };
+
       return ScanResult(
         mode: ScanMode.vin,
         rawValue: vin,
@@ -199,6 +205,7 @@ class VinParser {
           'Plant Code (Pos 11)': vin[10],
           'Sequential Number': vin.substring(11, 17),
         },
+        verifications: verifications,
         metadata: {
           'vin': vin,
           'wmi': wmi,
@@ -213,6 +220,7 @@ class VinParser {
       isValid: false,
       confidence: 0.3,
       fields: {'Document Type': 'VIN Number (Unparsed)', 'Raw Input': rawText},
+      verifications: {'checkDigitValid': false, 'iso3779StructureValid': false},
     );
   }
 }

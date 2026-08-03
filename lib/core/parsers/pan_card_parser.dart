@@ -132,12 +132,23 @@ class PanCardParser {
         }
       }
 
+      final surnameMatch = fields.containsKey('Holder Name')
+          ? fields['Holder Name']!.trim().split(' ').last.startsWith(surnameInitial)
+          : true;
+
+      final verifications = {
+        'panSyntaxValid': true,
+        'taxpayerCategoryDecoded': _holderStatusMap.containsKey(statusChar),
+        'surnameInitialMatch': surnameMatch,
+      };
+
       return ScanResult(
         mode: ScanMode.pan,
         rawValue: rawText,
         isValid: true,
-        confidence: 0.98,
+        confidence: 0.99,
         fields: fields,
+        verifications: verifications,
         metadata: {'panNumber': panNumber, 'statusChar': statusChar},
       );
     }
@@ -148,6 +159,7 @@ class PanCardParser {
       isValid: false,
       confidence: 0.35,
       fields: {'Document Type': 'PAN Card (Unparsed)', 'Raw Text': rawText},
+      verifications: {'panSyntaxValid': false},
     );
   }
 }

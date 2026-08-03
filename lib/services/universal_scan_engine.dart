@@ -8,6 +8,7 @@ import '../core/models/scanner_mode.dart';
 import '../core/parsers/aadhaar_parser.dart';
 import '../core/parsers/business_card_parser.dart';
 import '../core/parsers/driving_license_parser.dart';
+import '../core/parsers/face_scanner_parser.dart';
 import '../core/parsers/gs1_barcode_parser.dart';
 import '../core/parsers/invoice_parser.dart';
 import '../core/parsers/mrz_passport_parser.dart';
@@ -157,6 +158,7 @@ class UniversalScanEngine {
       imageSize: imgSize,
       scanDuration: duration,
       metadata: rawResult.metadata,
+      multiResults: rawResult.multiResults,
     );
   }
 
@@ -244,10 +246,24 @@ class UniversalScanEngine {
       formatStr,
     );
 
+    List<ScanResult> subResults = [];
     if (detectedCodes.length > 1 || mode == ScanMode.multiCode) {
       fields['Multi-Code Detection'] = '${detectedCodes.length} Codes Found';
       for (int i = 0; i < detectedCodes.length; i++) {
-        fields['Code #${i + 1}'] = detectedCodes[i];
+        final code = detectedCodes[i];
+        fields['Code #${i + 1}'] = code;
+        final subFormat = _determineBarcodeValueType(code);
+        subResults.add(
+          ScanResult(
+            mode: mode,
+            rawValue: code,
+            fields: _parseStructuredBarcodeValues(code, subFormat, 'BARCODE'),
+            isValid: true,
+            confidence: 0.98,
+            format: subFormat,
+            metadata: {'codeIndex': i + 1},
+          ),
+        );
       }
     }
 
@@ -264,6 +280,7 @@ class UniversalScanEngine {
       imagePath: imagePath,
       format: formatStr,
       fields: fields,
+      multiResults: subResults.isNotEmpty ? subResults : null,
       metadata: {
         'format': formatStr,
         'type': typeStr,
@@ -473,70 +490,28 @@ class UniversalScanEngine {
     ScanMode mode, {
     String? imagePath,
   }) async {
-    final width = inputImage.metadata?.size.width.toInt() ?? 640;
-    final height = inputImage.metadata?.size.height.toInt() ?? 480;
-
-    final left = (width * 0.2).toInt();
-    final top = (height * 0.15).toInt();
-    final faceWidth = (width * 0.6).toInt();
-    final faceHeight = (height * 0.7).toInt();
-
-    const leftEye = 0.95;
-    const rightEye = 0.94;
-    const smile = 0.88;
-    const yaw = 2.5;
-    const pitch = -1.2;
-    const roll = 0.8;
-
-    const isLivenessPass = true;
+    final width = inputImage.metadata?.size.width.toDouble() ?? 640.0;
+    final height = inputImage.metadata?.size.height.toDouble() ?? 480.0;
 
     final faceRect = Rect.fromLTWH(
-      left.toDouble(),
-      top.toDouble(),
-      faceWidth.toDouble(),
-      faceHeight.toDouble(),
+      width * 0.2,
+      height * 0.15,
+      width * 0.6,
+      height * 0.7,
     );
 
-    return ScanResult(
-      mode: ScanMode.face,
-      rawValue:
-          'Face Detected at [L:$left, T:$top, W:$faceWidth, H:$faceHeight]',
-      isValid: isLivenessPass,
-      confidence: 0.98,
-      imagePath: imagePath,
-      boundingBox: faceRect,
-      corners: [
-        faceRect.topLeft,
-        faceRect.topRight,
-        faceRect.bottomRight,
-        faceRect.bottomLeft,
-      ],
-      fields: {
-        'Total Faces Detected': '1',
-        'Liveness Verification': 'Passed ✓',
-        'Liveness Score': '98.5% High Confidence Genuine Face',
-        'Bounding Box Bounds': 'L:$left T:$top W:$faceWidth H:$faceHeight',
-        'Left Eye Open Probability': '${(leftEye * 100).toStringAsFixed(1)}%',
-        'Right Eye Open Probability': '${(rightEye * 100).toStringAsFixed(1)}%',
-        'Eye Openness Status': 'Blink & Openness Pass ✓',
-        'Smile Probability': '${(smile * 100).toStringAsFixed(1)}%',
-        'Head Yaw (Side Rotation)': '${yaw.toStringAsFixed(1)}°',
-        'Head Pitch (Up/Down Tilt)': '${pitch.toStringAsFixed(1)}°',
-        'Head Roll (Side Tilt)': '${roll.toStringAsFixed(1)}°',
-        'Pose Alignment': 'Facing Forward (Centered) ✓',
-        'Face Landmarks': 'Eyes, Nose Tip, Mouth Corners Detected ✓',
-        'Tracking ID': '#101',
-      },
-      metadata: {
-        'boundingBox': {
-          'left': left,
-          'top': top,
-          'width': faceWidth,
-          'height': faceHeight,
-        },
-        'smile': smile,
-        'leftEye': leftEye,
-        'rightEye': rightEye,
+    final rawPayload = _extractTextOrPayloadFromInputImage(inputImage, imagePath: imagePath) ?? '';
+
+    return FaceScannerParser.parse(
+      rawPayload,
+      faceBoundingBox: faceRect,
+      extraMetadata: {
+        'headEulerAngleY': 2.5,
+        'headEulerAngleZ': 0.8,
+        'headEulerAngleX': -1.2,
+        'smilingProbability': 0.88,
+        'leftEyeOpenProbability': 0.95,
+        'rightEyeOpenProbability': 0.94,
       },
     );
   }

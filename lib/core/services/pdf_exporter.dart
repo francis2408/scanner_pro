@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import '../models/scan_result.dart';
 
 /// PDF Export utility compiling scan results and document pages into printable PDF documents.
+typedef PdfExporter = PdfExportUtil;
+
 class PdfExportUtil {
   /// Compiles a list of [ScanResult] items or raw document images into PDF document bytes.
   static Uint8List exportResultsToPdf({
