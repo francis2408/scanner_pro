@@ -1,20 +1,31 @@
 import 'dart:async';
 
-import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/models/scan_result.dart';
 import '../../core/models/scanner_mode.dart';
 import '../../core/models/scanner_theme.dart';
-import '../../services/universal_scan_engine.dart';
+import '../../services/scanner_controller.dart';
 import 'result_bottom_sheet.dart';
+import 'scanner_camera_preview.dart';
 import 'scanner_overlay_painter.dart';
 
-/// Main camera viewfinder widget supporting mode switching, gallery picks, and reticle overlays.
+/// Builder signature for creating custom screen designs with [UniversalScannerView.builder].
+typedef UniversalScannerBuilder = Widget Function(
+  BuildContext context,
+  ScannerController controller,
+  Widget cameraPreview,
+);
+
+/// Main camera viewfinder widget supporting mode switching, gallery picks, reticle overlays,
+/// and complete screen layout customization.
 class UniversalScannerView extends StatefulWidget {
+  /// Optional custom controller for standalone functionality and state management.
+  final ScannerController? controller;
+
+  /// Optional builder for rendering custom screen designs and UI layouts.
+  final UniversalScannerBuilder? builder;
+
   /// Initial mode when the scanner opens.
   final ScanMode initialMode;
 
@@ -78,12 +89,16 @@ class UniversalScannerView extends StatefulWidget {
   /// Whether to display animated scanning laser beam.
   final bool? showLaserBeam;
 
+  /// Whether to automatically show [ResultBottomSheet] upon scanning a valid result.
+  final bool autoShowResultBottomSheet;
+
   /// Optional callback invoked when a valid [ScanResult] is detected.
   final Function(ScanResult result)? onResultDetected;
 
-  /// Constructs a new [UniversalScannerView].
+  /// Constructs a new [UniversalScannerView] with default pre-packaged SDK layout.
   const UniversalScannerView({
     super.key,
+    this.controller,
     this.initialMode = ScanMode.qr,
     this.enabledModes,
     this.enableQr = true,
@@ -105,10 +120,41 @@ class UniversalScannerView extends StatefulWidget {
     this.showModeBadge,
     this.showGuideBox,
     this.showLaserBeam,
+    this.autoShowResultBottomSheet = true,
+    this.onResultDetected,
+  }) : builder = null;
+
+  /// Constructs a [UniversalScannerView] using a custom builder to create a custom screen design.
+  const UniversalScannerView.builder({
+    super.key,
+    required this.builder,
+    this.controller,
+    this.initialMode = ScanMode.qr,
+    this.enabledModes,
+    this.enableQr = true,
+    this.enableBarcode = true,
+    this.enablePdf417 = true,
+    this.enablePassport = true,
+    this.enableAadhaar = true,
+    this.enablePan = true,
+    this.enableDrivingLicense = true,
+    this.enableVin = true,
+    this.enableOcr = true,
+    this.enableFace = true,
+    this.theme,
+    this.primaryAccentColor,
+    this.backgroundColor,
+    this.modeSelectorBackgroundColor,
+    this.overlayMaskColor,
+    this.laserBeamColor,
+    this.showModeBadge,
+    this.showGuideBox,
+    this.showLaserBeam,
+    this.autoShowResultBottomSheet = true,
     this.onResultDetected,
   });
 
-  /// Resolves the effective [ScannerUiTheme] merging [theme] and individual color overrides.
+  /// Resolves effective [ScannerUiTheme] merging [theme] and individual color overrides.
   ScannerUiTheme get resolvedTheme {
     final base = theme ?? ScannerUiTheme.dark;
     return ScannerUiTheme(
@@ -138,7 +184,7 @@ class UniversalScannerView extends StatefulWidget {
     );
   }
 
-  /// Resolves the list of active scanning modes enabled for this widget.
+  /// Resolves active scanning modes enabled for this widget.
   List<ScanMode> get activeEnabledModes {
     if (enabledModes != null && enabledModes!.isNotEmpty) {
       return List.unmodifiable(enabledModes!);
@@ -164,410 +210,195 @@ class UniversalScannerView extends StatefulWidget {
 
 class _UniversalScannerViewState extends State<UniversalScannerView>
     with SingleTickerProviderStateMixin {
-  late ScanMode _selectedMode;
-  CameraController? _cameraController;
-  List<CameraDescription> _availableCameras = [];
-  bool _isCameraInitialized = false;
-  bool _isFlashOn = false;
-  int _selectedCameraIndex = 0;
-
-  final StreamController<ScanResult> _scanEventController =
-      StreamController<ScanResult>.broadcast();
-  late StreamSubscription<ScanResult> _scanEventSubscription;
-  bool _isAnalyzingEvent = false;
-  bool _isProcessingLiveFrame = false;
-  String? _lastScannedPayload;
-  DateTime? _lastScannedTime;
-  Uint8List? _cachedNv21Buffer;
-  DateTime? _lastFrameProcessedTime;
+  late ScannerController _controller;
+  bool _createdOwnController = false;
 
   late final AnimationController _laserAnimController;
-  final UniversalScanEngine _scanEngine = UniversalScanEngine();
-  final ImagePicker _imagePicker = ImagePicker();
+  StreamSubscription<ScanResult>? _scanSubscription;
 
   @override
   void initState() {
     super.initState();
-    final available = widget.activeEnabledModes;
-    if (available.contains(widget.initialMode)) {
-      _selectedMode = widget.initialMode;
+    if (widget.controller != null) {
+      _controller = widget.controller!;
     } else {
-      _selectedMode = available.first;
+      final available = widget.activeEnabledModes;
+      final startMode = available.contains(widget.initialMode)
+          ? widget.initialMode
+          : available.first;
+
+      _controller = ScannerController(initialMode: startMode);
+      _createdOwnController = true;
+      _controller.initialize();
     }
+
     _laserAnimController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _scanEventSubscription = _scanEventController.stream.listen((result) {
-      _onScanDataEventReceived(result);
+    _scanSubscription = _controller.onResult.listen((result) {
+      widget.onResultDetected?.call(result);
+      if (widget.autoShowResultBottomSheet && mounted) {
+        ResultBottomSheet.show(context, result);
+      }
     });
-
-    _initCamera();
-  }
-
-  Future<void> _initCamera() async {
-    try {
-      _availableCameras = await availableCameras();
-      if (_availableCameras.isNotEmpty) {
-        final camera = _availableCameras[_selectedCameraIndex];
-        _cameraController = CameraController(
-          camera,
-          ResolutionPreset.high,
-          enableAudio: false,
-          imageFormatGroup: defaultTargetPlatform == TargetPlatform.android
-              ? ImageFormatGroup.yuv420
-              : ImageFormatGroup.bgra8888,
-        );
-
-        await _cameraController!.initialize();
-        _startLiveImageStream();
-
-        if (mounted) {
-          setState(() {
-            _isCameraInitialized = true;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Camera init error (simulator or permissions): $e');
-      if (mounted) {
-        setState(() {
-          _isCameraInitialized = false;
-        });
-      }
-    }
-  }
-
-  void _startLiveImageStream() {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      return;
-    }
-
-    if (_cameraController!.value.isStreamingImages) {
-      return;
-    }
-
-    try {
-      _cameraController!.startImageStream((CameraImage image) async {
-        if (!mounted || _isProcessingLiveFrame || _isAnalyzingEvent) return;
-
-        final now = DateTime.now();
-        if (_lastFrameProcessedTime != null &&
-            now.difference(_lastFrameProcessedTime!).inMilliseconds < 150) {
-          return;
-        }
-
-        _isProcessingLiveFrame = true;
-        _lastFrameProcessedTime = now;
-
-        try {
-          final inputImage = _inputImageFromCameraImage(image);
-          if (inputImage != null) {
-            final result = await _scanEngine.processInputImage(
-              inputImage,
-              _selectedMode,
-            );
-            if (result.isValid && result.confidence >= 0.70) {
-              _emitScanDataEvent(result);
-            }
-          }
-        } catch (e) {
-          // Silently skip unparseable transient frame
-        } finally {
-          _isProcessingLiveFrame = false;
-        }
-      });
-    } catch (e) {
-      debugPrint('Error starting live image stream: $e');
-    }
-  }
-
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    if (_cameraController == null || _availableCameras.isEmpty) return null;
-    final camera = _availableCameras[_selectedCameraIndex];
-    final sensorOrientation = camera.sensorOrientation;
-    final rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
-    if (rotation == null) return null;
-
-    final format = defaultTargetPlatform == TargetPlatform.android
-        ? InputImageFormat.nv21
-        : InputImageFormat.bgra8888;
-
-    if (image.planes.isEmpty) return null;
-
-    final Uint8List bytes = _convertCameraImageToBytes(image);
-
-    return InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      ),
-    );
-  }
-
-  Uint8List _convertCameraImageToBytes(CameraImage image) {
-    if (defaultTargetPlatform == TargetPlatform.android &&
-        image.planes.length == 3) {
-      final yBuffer = image.planes[0].bytes;
-      final uBuffer = image.planes[1].bytes;
-      final vBuffer = image.planes[2].bytes;
-
-      final int ySize = yBuffer.length;
-      final int uSize = uBuffer.length;
-      final int vSize = vBuffer.length;
-      final int totalSize = ySize + (ySize ~/ 2);
-
-      if (_cachedNv21Buffer == null || _cachedNv21Buffer!.length < totalSize) {
-        _cachedNv21Buffer = Uint8List(totalSize);
-      }
-
-      final nv21 = _cachedNv21Buffer!;
-      nv21.setRange(0, ySize, yBuffer);
-
-      int nv21Index = ySize;
-      for (int i = 0; i < uSize && nv21Index < totalSize; i++) {
-        if (i < vSize) {
-          nv21[nv21Index++] = vBuffer[i];
-        }
-        if (nv21Index < totalSize) {
-          nv21[nv21Index++] = uBuffer[i];
-        }
-      }
-      return nv21;
-    }
-
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    return allBytes.done().buffer.asUint8List();
   }
 
   @override
   void dispose() {
-    if (_cameraController != null &&
-        _cameraController!.value.isStreamingImages) {
-      _cameraController?.stopImageStream();
-    }
-    _scanEventSubscription.cancel();
-    _scanEventController.close();
+    _scanSubscription?.cancel();
     _laserAnimController.dispose();
-    _cameraController?.dispose();
-    _scanEngine.dispose();
+    if (_createdOwnController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
   void _onSelectMode(ScanMode mode) {
-    setState(() {
-      _selectedMode = mode;
-    });
-  }
-
-  Future<void> _toggleFlash() async {
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
-      _isFlashOn = !_isFlashOn;
-      await _cameraController!.setFlashMode(
-        _isFlashOn ? FlashMode.torch : FlashMode.off,
-      );
-      setState(() {});
-    }
-  }
-
-  Future<void> _switchCamera() async {
-    if (_availableCameras.length > 1) {
-      _selectedCameraIndex =
-          (_selectedCameraIndex + 1) % _availableCameras.length;
-      if (_cameraController != null &&
-          _cameraController!.value.isStreamingImages) {
-        try {
-          await _cameraController!.stopImageStream();
-        } catch (_) {}
-      }
-      await _cameraController?.dispose();
-      _cameraController = null;
-      setState(() {
-        _isCameraInitialized = false;
-      });
-      await _initCamera();
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    if (_isAnalyzingEvent) return;
-    try {
-      final XFile? file = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-      );
-      if (file != null) {
-        final result = await _scanEngine.processImageFile(
-          file.path,
-          _selectedMode,
-        );
-        _emitScanDataEvent(result);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gallery pick error: ${e.toString()}')),
-      );
-    }
-  }
-
-  void _emitScanDataEvent(ScanResult result) {
-    if (!_scanEventController.isClosed && !_isAnalyzingEvent) {
-      _scanEventController.add(result);
-    }
-  }
-
-  Future<void> _onScanDataEventReceived(ScanResult result) async {
-    if (_isAnalyzingEvent) return;
-    _isAnalyzingEvent = true;
-
-    final now = DateTime.now();
-    if (_lastScannedPayload == result.rawValue &&
-        _lastScannedTime != null &&
-        now.difference(_lastScannedTime!) < const Duration(seconds: 4)) {
-      _isAnalyzingEvent = false;
-      return;
-    }
-
-    _lastScannedPayload = result.rawValue;
-    _lastScannedTime = now;
-
-    widget.onResultDetected?.call(result);
-
-    await ResultBottomSheet.show(context, result);
-
-    _isAnalyzingEvent = false;
+    _controller.setMode(mode);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.builder != null) {
+      return ListenableBuilder(
+        listenable: _controller,
+        builder: (context, _) {
+          return widget.builder!(
+            context,
+            _controller,
+            ScannerCameraPreview(controller: _controller),
+          );
+        },
+      );
+    }
+
     final uiTheme = widget.resolvedTheme;
-    return Container(
-      color: uiTheme.backgroundColor,
-      child: Column(
-        children: [
-          _buildModeSelectorBar(),
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (_isCameraInitialized &&
-                    _cameraController != null &&
-                    _cameraController!.value.isInitialized)
-                  CameraPreview(_cameraController!)
-                else
-                  _buildSimulatorViewfinder(),
-
-                AnimatedBuilder(
-                  animation: _laserAnimController,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: ScannerOverlayPainter(
-                        scanMode: _selectedMode,
-                        animationValue: _laserAnimController.value,
-                        accentColor: _getCategoryColor(_selectedMode.category),
-                        theme: uiTheme,
-                      ),
-                    );
-                  },
-                ),
-
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (_isCameraInitialized)
-                        _buildIconButton(
-                          icon: _isFlashOn
-                              ? Icons.flash_on_rounded
-                              : Icons.flash_off_rounded,
-                          onPressed: _toggleFlash,
-                          active: _isFlashOn,
-                        )
-                      else
-                        const SizedBox(width: 44),
-                      if (uiTheme.showModeBadge)
-                        _buildModeBadge()
-                      else
-                        const SizedBox.shrink(),
-                      Row(
-                        children: [
-                          _buildIconButton(
-                            icon: Icons.photo_library_rounded,
-                            onPressed: _pickImageFromGallery,
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final currentMode = _controller.selectedMode;
+        return Container(
+          color: uiTheme.backgroundColor,
+          child: Column(
+            children: [
+              _buildModeSelectorBar(currentMode),
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ScannerCameraPreview(
+                      controller: _controller,
+                      placeholder: _buildSimulatorViewfinder(currentMode),
+                    ),
+                    AnimatedBuilder(
+                      animation: _laserAnimController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: ScannerOverlayPainter(
+                            scanMode: currentMode,
+                            animationValue: _laserAnimController.value,
+                            accentColor: _getCategoryColor(currentMode.category),
+                            theme: uiTheme,
                           ),
-                          if (_availableCameras.length > 1) ...[
-                            const SizedBox(width: 8),
-                            _buildIconButton(
-                              icon: Icons.cameraswitch_rounded,
-                              onPressed: _switchCamera,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (uiTheme.showGuideBox)
-                  Positioned(
-                    bottom: 24,
-                    left: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: uiTheme.guideBoxBackgroundColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      right: 16,
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            color: _getCategoryColor(_selectedMode.category),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              _selectedMode.guideText,
-                              style: TextStyle(
-                                color: uiTheme.guideTextColor,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
+                          if (_controller.isInitialized)
+                            _buildIconButton(
+                              icon: _controller.isFlashOn
+                                  ? Icons.flash_on_rounded
+                                  : Icons.flash_off_rounded,
+                              onPressed: () => _controller.toggleFlash(),
+                              active: _controller.isFlashOn,
+                              category: currentMode.category,
+                            )
+                          else
+                            const SizedBox(width: 44),
+                          if (uiTheme.showModeBadge)
+                            _buildModeBadge(currentMode)
+                          else
+                            const SizedBox.shrink(),
+                          Row(
+                            children: [
+                              _buildIconButton(
+                                icon: Icons.photo_library_rounded,
+                                onPressed: () => _controller.pickAndScanImage(),
+                                category: currentMode.category,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
+                              if (_controller.availableCameras.length > 1) ...[
+                                const SizedBox(width: 8),
+                                _buildIconButton(
+                                  icon: Icons.cameraswitch_rounded,
+                                  onPressed: () => _controller.switchCamera(),
+                                  category: currentMode.category,
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  ),
-              ],
-            ),
+                    if (uiTheme.showGuideBox)
+                      Positioned(
+                        bottom: 24,
+                        left: 16,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: uiTheme.guideBoxBackgroundColor,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                color: _getCategoryColor(currentMode.category),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  currentMode.guideText,
+                                  style: TextStyle(
+                                    color: uiTheme.guideTextColor,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildModeSelectorBar() {
+  Widget _buildModeSelectorBar(ScanMode currentMode) {
     final availableModes = widget.activeEnabledModes;
     if (availableModes.length <= 1) {
       return const SizedBox.shrink();
@@ -582,7 +413,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
         itemCount: availableModes.length,
         itemBuilder: (context, index) {
           final mode = availableModes[index];
-          final isSelected = mode == _selectedMode;
+          final isSelected = mode == currentMode;
           final accentColor = _getCategoryColor(mode.category);
           final tabBgColor = isSelected
               ? (uiTheme.modeTabSelectedColor ?? accentColor)
@@ -640,7 +471,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
     );
   }
 
-  Widget _buildSimulatorViewfinder() {
+  Widget _buildSimulatorViewfinder(ScanMode currentMode) {
     final uiTheme = widget.resolvedTheme;
     return Container(
       color: uiTheme.backgroundColor,
@@ -649,15 +480,15 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _selectedMode.icon,
+              currentMode.icon,
               size: 64,
               color: _getCategoryColor(
-                _selectedMode.category,
+                currentMode.category,
               ).withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
-              '${_selectedMode.title} Scanner Viewfinder',
+              '${currentMode.title} Scanner Viewfinder',
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 16,
@@ -682,10 +513,10 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
     );
   }
 
-  Widget _buildModeBadge() {
+  Widget _buildModeBadge(ScanMode currentMode) {
     final uiTheme = widget.resolvedTheme;
     final badgeColor =
-        uiTheme.badgeTextColor ?? _getCategoryColor(_selectedMode.category);
+        uiTheme.badgeTextColor ?? _getCategoryColor(currentMode.category);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
@@ -694,7 +525,7 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
         border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
       ),
       child: Text(
-        _selectedMode.title.toUpperCase(),
+        currentMode.title.toUpperCase(),
         style: TextStyle(
           color: badgeColor,
           fontSize: 11.5,
@@ -708,9 +539,10 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
   Widget _buildIconButton({
     required IconData icon,
     required VoidCallback onPressed,
+    required String category,
     bool active = false,
   }) {
-    final accent = _getCategoryColor(_selectedMode.category);
+    final accent = _getCategoryColor(category);
     return Container(
       decoration: BoxDecoration(
         color: active ? accent : Colors.black.withValues(alpha: 0.65),

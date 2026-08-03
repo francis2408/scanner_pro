@@ -17,11 +17,117 @@ Equipped with Google ML Kit Vision AI, mathematical checksum validators (Verhoef
 
 ---
 
-## Custom UI Design & Visual Themes
+## 🎨 Custom Screen Design & Visual Themes
 
 ![Scanner UI Preview](https://raw.githubusercontent.com/francis2408/scanner_pro/main/doc/assets/scanner_ui_preview.png)
 
-Customize the viewfinder visual aesthetic to match your brand design system:
+### Use ONLY the Functionality with Your Own Screen Design
+If you want to use **ONLY** the scanner functionality and create your own screen design, use `ScannerController` and `ScannerCameraPreview`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:scannerpro/scannerpro.dart';
+
+class MyCustomScannerScreen extends StatefulWidget {
+  const MyCustomScannerScreen({super.key});
+
+  @override
+  State<MyCustomScannerScreen> createState() => _MyCustomScannerScreenState();
+}
+
+class _MyCustomScannerScreenState extends State<MyCustomScannerScreen> {
+  late ScannerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // 1. Instantiate standalone scanner controller
+    _controller = ScannerController(
+      initialMode: ScanMode.qr,
+      onResultDetected: (result) => print('Scanned: ${result.rawValue}'),
+    );
+    _controller.initialize();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        return Scaffold(
+          body: Stack(
+            children: [
+              // 2. Unopinionated camera feed widget
+              ScannerCameraPreview(controller: _controller),
+
+              // 3. Your custom reticle overlay & screen design!
+              Center(
+                child: Container(
+                  width: 260,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.cyan, width: 3),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+
+              // 4. Your custom buttons & controls
+              Positioned(
+                bottom: 30,
+                left: 20,
+                right: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      icon: Icon(_controller.isFlashOn ? Icons.flash_on : Icons.flash_off),
+                      onPressed: () => _controller.toggleFlash(),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _controller.setMode(ScanMode.barcode),
+                      child: const Text('Barcode Mode'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.photo_library),
+                      onPressed: () => _controller.pickAndScanImage(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+Or use `UniversalScannerView.builder(...)` for total layout customization:
+```dart
+UniversalScannerView.builder(
+  builder: (context, controller, cameraPreview) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          cameraPreview, // Raw camera feed
+          MyCustomFrameWidget(),
+          MyCustomButtons(controller: controller),
+        ],
+      ),
+    );
+  },
+);
+```
+
+### Pre-packaged Visual Themes
 - **Built-in Presets**: `ScannerUiTheme.dark`, `ScannerUiTheme.cyan`, `ScannerUiTheme.emerald`, `ScannerUiTheme.amber`.
 - **Custom Color Overrides**: Reticle corners, border outlines, laser beam colors, viewfinder mask opacity, and background containers.
 - **Dimensional Controls**: Custom reticle corner radii, stroke widths, bracket lengths, and element toggles.

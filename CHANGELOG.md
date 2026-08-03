@@ -1,3 +1,9 @@
+# 1.0.9
+
+- Standalone Scanning Engine & Custom Screen Design: Added `ScannerController` and `ScannerCameraPreview` widgets to decouple camera lifecycle, ML vision scanning, and stream processing from pre-packaged UI layouts.
+- Custom Builder Support: Added `UniversalScannerView.builder(...)` constructor allowing developers to build custom screen UI designs with full access to scanner functionality.
+- Updated documentation and example applications demonstrating custom screen UI design usage.
+
 # 1.0.8
 
 - README Image Rendering Fix: Updated banner and UI preview graphics in `README.md` to use GitHub raw image URLs and standard Markdown syntax for pub.dev web rendering compatibility.

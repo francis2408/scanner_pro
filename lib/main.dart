@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import 'core/models/scan_result.dart';
 import 'core/models/scanner_mode.dart';
+import 'services/scanner_controller.dart';
 import 'ui/widgets/result_bottom_sheet.dart';
+import 'ui/widgets/scanner_camera_preview.dart';
 import 'ui/widgets/universal_scanner_view.dart';
 
 /// Application entry point.
@@ -52,6 +54,7 @@ class MainScannerDashboard extends StatefulWidget {
 
 class _MainScannerDashboardState extends State<MainScannerDashboard> {
   final List<ScanResult> _scanHistory = [];
+  bool _useCustomScreenDesign = false;
 
   void _onResultDetected(ScanResult result) {
     setState(() {
@@ -203,7 +206,7 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
                 ),
                 SizedBox(width: 10),
                 Text(
-                  'Universal Scanner SDK Usage',
+                  'Custom Screen Design & SDK Usage',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -214,7 +217,7 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Easily integrate all 10 scan modes into any Flutter app with cross-platform Android & iOS support:',
+              'Use ONLY the scanner functionality and create your own screen design:',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 14),
@@ -227,28 +230,34 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
               ),
               child: const SelectableText(
                 '''
-// 1. Single facade widget with feature-flag access control:
-UniversalScannerView(
-  initialMode: ScanMode.aadhaar,
-  enableAadhaar: true, // Selective access control flags
-  enablePan: true,
-  enablePassport: true,
-  onResultDetected: (ScanResult result) {
-    print('Scan Mode: \${result.mode.title}');
-    print('Parsed Fields: \${result.fields}');
-    print('Is Valid: \${result.isValid}');
-  },
-)
+// 1. Create standalone ScannerController & CameraPreview for custom UI:
+final controller = ScannerController(
+  initialMode: ScanMode.qr,
+  onResultDetected: (result) => print(result.rawValue),
+);
+await controller.initialize();
 
-// 2. Or call standalone parsers directly:
-final passportResult = MrzPassportParser.parse(mrzRawText);
-final aadhaarResult  = AadhaarParser.parse(qrOrText);
-final panResult      = PanCardParser.parse(ocrText);
-final vinResult      = VinParser.parse(vin17String);
+// Render raw camera feed anywhere in your custom screen layout:
+ScannerCameraPreview(controller: controller);
+
+// 2. Or use UniversalScannerView.builder for custom screen designs:
+UniversalScannerView.builder(
+  builder: (context, controller, cameraPreview) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          cameraPreview, // Camera feed
+          MyCustomOverlay(), // Your own reticle & overlays
+          MyCustomControlsBar(controller: controller), // Your own buttons
+        ],
+      ),
+    );
+  },
+);
 ''',
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: 11.5,
                   color: Color(0xFF00E5FF),
                 ),
               ),
@@ -302,18 +311,20 @@ final vinResult      = VinParser.parse(vin17String);
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'Universal Scanner',
-                  style: TextStyle(
+                  _useCustomScreenDesign ? 'Custom Screen UI' : 'Universal Scanner',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Android & iOS Cross-Platform SDK',
-                  style: TextStyle(
+                  _useCustomScreenDesign
+                      ? 'Custom Screen Design Demo'
+                      : 'Android & iOS Cross-Platform SDK',
+                  style: const TextStyle(
                     fontSize: 10,
                     color: Colors.white54,
                     fontWeight: FontWeight.w500,
@@ -324,6 +335,18 @@ final vinResult      = VinParser.parse(vin17String);
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _useCustomScreenDesign ? Icons.dashboard_customize_rounded : Icons.brush_rounded,
+              color: _useCustomScreenDesign ? const Color(0xFF00E5FF) : Colors.white70,
+            ),
+            tooltip: _useCustomScreenDesign ? 'Switch to Standard UI' : 'Switch to Custom Design',
+            onPressed: () {
+              setState(() {
+                _useCustomScreenDesign = !_useCustomScreenDesign;
+              });
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.code_rounded, color: Color(0xFFFFD600)),
             tooltip: 'SDK Usage Code',
@@ -362,7 +385,234 @@ final vinResult      = VinParser.parse(vin17String);
           const SizedBox(width: 4),
         ],
       ),
-      body: UniversalScannerView(onResultDetected: _onResultDetected),
+      body: _useCustomScreenDesign
+          ? CustomScreenDesignView(onResultDetected: _onResultDetected)
+          : UniversalScannerView(onResultDetected: _onResultDetected),
+    );
+  }
+}
+
+/// Demonstration of how a package user can create their OWN screen design
+/// using ONLY the scanning functionality from `ScannerController` & `ScannerCameraPreview`.
+class CustomScreenDesignView extends StatefulWidget {
+  final Function(ScanResult result)? onResultDetected;
+
+  const CustomScreenDesignView({super.key, this.onResultDetected});
+
+  @override
+  State<CustomScreenDesignView> createState() => _CustomScreenDesignViewState();
+}
+
+class _CustomScreenDesignViewState extends State<CustomScreenDesignView> {
+  late ScannerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScannerController(
+      initialMode: ScanMode.qr,
+      onResultDetected: (result) {
+        widget.onResultDetected?.call(result);
+      },
+    );
+    _controller.initialize();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final activeMode = _controller.selectedMode;
+        final lastResult = _controller.lastResult;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF0B0E14),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Raw camera feed (Functionality only!)
+              ScannerCameraPreview(controller: _controller),
+
+              // 2. Custom User-Designed Overlay & Target Framing
+              Center(
+                child: Container(
+                  width: 260,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: const Color(0xFF00E5FF),
+                      width: 2.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.25),
+                        blurRadius: 30,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          activeMode.icon,
+                          size: 48,
+                          color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 12,
+                        left: 0,
+                        right: 0,
+                        child: Text(
+                          'ALIGN ${activeMode.title.toUpperCase()}',
+                          style: const TextStyle(
+                            color: Color(0xFF00E5FF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 3. Custom Floating Mode Chips
+              Positioned(
+                top: 20,
+                left: 16,
+                right: 16,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ScanMode.values.take(6).map((mode) {
+                      final isSelected = mode == activeMode;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          showCheckmark: false,
+                          avatar: Icon(
+                            mode.icon,
+                            size: 14,
+                            color: isSelected ? Colors.black : Colors.white70,
+                          ),
+                          label: Text(
+                            mode.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSelected ? Colors.black : Colors.white,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF00E5FF),
+                          backgroundColor: Colors.black54,
+                          onSelected: (_) => _controller.setMode(mode),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
+              // 4. Custom Floating Controls (Flash, Gallery, Switch Camera)
+              Positioned(
+                bottom: 30,
+                left: 24,
+                right: 24,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (lastResult != null && lastResult.isValid)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF161B22).withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF00E676)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    lastResult.mode.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    lastResult.rawValue,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _controller.isFlashOn ? Icons.flash_on : Icons.flash_off,
+                              color: _controller.isFlashOn ? const Color(0xFFFFD600) : Colors.white,
+                            ),
+                            onPressed: () => _controller.toggleFlash(),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00E5FF),
+                              foregroundColor: Colors.black,
+                              shape: const StadiumBorder(),
+                            ),
+                            icon: const Icon(Icons.photo_library_rounded, size: 18),
+                            label: const Text('Pick Image', style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () => _controller.pickAndScanImage(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white),
+                            onPressed: () => _controller.switchCamera(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
