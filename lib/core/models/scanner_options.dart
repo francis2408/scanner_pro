@@ -54,6 +54,43 @@ class ScanWindow {
   }
 }
 
+/// State representing camera frame processing activity level.
+enum ScannerFpsState {
+  /// Active searching state for codes/documents (30 FPS / ~33ms).
+  searching,
+
+  /// Target code/document detected (15 FPS / ~66ms).
+  detected,
+
+  /// Idle / low-activity state (10 FPS / ~100ms).
+  idle,
+}
+
+extension ScannerFpsStateExtension on ScannerFpsState {
+  int get targetFps {
+    switch (this) {
+      case ScannerFpsState.searching:
+        return 30;
+      case ScannerFpsState.detected:
+        return 15;
+      case ScannerFpsState.idle:
+        return 10;
+    }
+  }
+
+  int get frameIntervalMs {
+    switch (this) {
+      case ScannerFpsState.searching:
+        return 33;
+      case ScannerFpsState.detected:
+        return 66;
+      case ScannerFpsState.idle:
+        return 100;
+    }
+  }
+}
+
+/// Dynamic Region of Interest (ROI) scanning window rectangle.
 /// Configuration options controlling camera detection rate, ROI bounds,
 /// duplicate caching, auto-zoom, image enhancement, isolate multi-threading,
 /// and enterprise scanning parameters.
@@ -68,8 +105,11 @@ class ScannerOptions {
   /// (e.g. 50ms = max 20 detections/sec for optimal CPU & battery usage).
   final int frameThrottleMs;
 
-  /// Target frame processing rate in frames per second (e.g. 15-20 FPS).
+  /// Target frame processing rate in frames per second (e.g. 15-30 FPS).
   final int targetFrameRate;
+
+  /// Dynamically adjust frame processing rate based on detection state (Searching: 30 FPS, Detected: 15 FPS, Idle: 10 FPS).
+  final bool enableAdaptiveFps;
 
   /// Dynamically adjust frame skipping based on device processing load & latency.
   final bool enableAdaptiveFrameSkipping;
@@ -77,11 +117,23 @@ class ScannerOptions {
   /// Automatically skip vision engine analysis when scene remains static.
   final bool enablePauseOnStaticFrame;
 
+  /// Enable progressive camera resolution escalation (640x480 -> 1280x720 -> 1920x1080).
+  final bool enableProgressiveResolution;
+
   /// Timeout duration during which identical scanned payloads are ignored.
   final Duration duplicateTimeout;
 
   /// Whether duplicate filtering is enabled.
   final bool enableDuplicateFilter;
+
+  /// Enable in-memory LRU detection cache to bypass duplicate frame decoding.
+  final bool enableDetectionCache;
+
+  /// Timeout duration for detection cache entries.
+  final Duration detectionCacheTimeout;
+
+  /// Maximum frame buffer queue size to prevent memory backlog.
+  final int frameQueueCapacity;
 
   /// Offload YUV/NV21 image conversions, ROI cropping, and image enhancement to background isolate.
   final bool enableIsolateProcessing;
@@ -176,10 +228,15 @@ class ScannerOptions {
     this.scanWindow = ScanWindow.centerReticle,
     this.frameThrottleMs = 50,
     this.targetFrameRate = 20,
+    this.enableAdaptiveFps = true,
     this.enableAdaptiveFrameSkipping = true,
     this.enablePauseOnStaticFrame = true,
-    this.duplicateTimeout = const Duration(milliseconds: 1000),
+    this.enableProgressiveResolution = true,
+    this.duplicateTimeout = const Duration(milliseconds: 2000),
     this.enableDuplicateFilter = true,
+    this.enableDetectionCache = true,
+    this.detectionCacheTimeout = const Duration(milliseconds: 2000),
+    this.frameQueueCapacity = 3,
     this.enableIsolateProcessing = true,
     this.enableImageEnhancement = true,
     this.enableBlurDetection = true,
@@ -258,10 +315,15 @@ class ScannerOptions {
     ScanWindow? scanWindow,
     int? frameThrottleMs,
     int? targetFrameRate,
+    bool? enableAdaptiveFps,
     bool? enableAdaptiveFrameSkipping,
     bool? enablePauseOnStaticFrame,
+    bool? enableProgressiveResolution,
     Duration? duplicateTimeout,
     bool? enableDuplicateFilter,
+    bool? enableDetectionCache,
+    Duration? detectionCacheTimeout,
+    int? frameQueueCapacity,
     bool? enableIsolateProcessing,
     bool? enableImageEnhancement,
     bool? enableBlurDetection,
@@ -297,13 +359,20 @@ class ScannerOptions {
       scanWindow: scanWindow ?? this.scanWindow,
       frameThrottleMs: frameThrottleMs ?? this.frameThrottleMs,
       targetFrameRate: targetFrameRate ?? this.targetFrameRate,
+      enableAdaptiveFps: enableAdaptiveFps ?? this.enableAdaptiveFps,
       enableAdaptiveFrameSkipping:
           enableAdaptiveFrameSkipping ?? this.enableAdaptiveFrameSkipping,
       enablePauseOnStaticFrame:
           enablePauseOnStaticFrame ?? this.enablePauseOnStaticFrame,
+      enableProgressiveResolution:
+          enableProgressiveResolution ?? this.enableProgressiveResolution,
       duplicateTimeout: duplicateTimeout ?? this.duplicateTimeout,
       enableDuplicateFilter:
           enableDuplicateFilter ?? this.enableDuplicateFilter,
+      enableDetectionCache: enableDetectionCache ?? this.enableDetectionCache,
+      detectionCacheTimeout:
+          detectionCacheTimeout ?? this.detectionCacheTimeout,
+      frameQueueCapacity: frameQueueCapacity ?? this.frameQueueCapacity,
       enableIsolateProcessing:
           enableIsolateProcessing ?? this.enableIsolateProcessing,
       enableImageEnhancement:

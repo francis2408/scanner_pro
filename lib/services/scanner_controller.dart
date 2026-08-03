@@ -84,6 +84,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   ScanResult? _lastResult;
   String? _errorMessage;
 
+  ScannerFpsState _fpsState = ScannerFpsState.searching;
+  ScannerFpsState get fpsState => _fpsState;
+  final Map<String, ScanResult> _detectionCache = {};
+  int _consecutiveEmptyFrameCount = 0;
+
   // Zoom and Focus properties
   double _currentZoomLevel = 1.0;
   double _minZoomLevel = 1.0;
@@ -309,8 +314,6 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
-    int dynamicThrottleMs = (1000 ~/ options.targetFrameRate).clamp(20, options.frameThrottleMs);
-
     try {
       _cameraController!.startImageStream((cam.CameraImage image) async {
         if (!_frameStreamController.isClosed) {
@@ -322,7 +325,12 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
         final now = DateTime.now();
 
-        // Adaptive frame rate throttling based on latency feedback
+        // Adaptive frame rate throttling based on FPS state & latency feedback
+        final targetThrottle = options.enableAdaptiveFps
+            ? _fpsState.frameIntervalMs
+            : options.frameThrottleMs;
+        int dynamicThrottleMs = targetThrottle;
+
         if (_lastFrameProcessedTime != null &&
             now.difference(_lastFrameProcessedTime!).inMilliseconds < dynamicThrottleMs) {
           _droppedFrameCount++;
@@ -400,9 +408,19 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
               if (enriched.isValid &&
                   enriched.confidence >= options.minConfidence) {
+                _fpsState = ScannerFpsState.detected;
+                _consecutiveEmptyFrameCount = 0;
+                if (options.enableDetectionCache) {
+                  _detectionCache[enriched.rawValue] = enriched;
+                }
                 final consensusResult = _processMultiFrameConsensus(enriched);
                 if (consensusResult != null) {
                   _checkAutoZoomAndEmit(consensusResult, image.width, image.height);
+                }
+              } else {
+                _consecutiveEmptyFrameCount++;
+                if (_consecutiveEmptyFrameCount >= 8) {
+                  _fpsState = ScannerFpsState.searching;
                 }
               }
             }
@@ -416,9 +434,16 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               _processedFrameCount++;
               if (result.isValid &&
                   result.confidence >= options.minConfidence) {
+                _fpsState = ScannerFpsState.detected;
+                _consecutiveEmptyFrameCount = 0;
                 final consensusResult = _processMultiFrameConsensus(result);
                 if (consensusResult != null) {
                   _checkAutoZoomAndEmit(consensusResult, image.width, image.height);
+                }
+              } else {
+                _consecutiveEmptyFrameCount++;
+                if (_consecutiveEmptyFrameCount >= 8) {
+                  _fpsState = ScannerFpsState.searching;
                 }
               }
             }

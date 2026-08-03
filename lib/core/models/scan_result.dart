@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'scanner_mode.dart';
 
+import '../parsers/bank_cheque_parser.dart';
+
 /// Document image quality metrics calculated during isolate preprocessing.
 class DocumentQualityScore {
   final double blurScore;
@@ -102,6 +104,9 @@ class ScanResult {
   /// Processing algorithms and enhancements metadata applied to the input image.
   final Map<String, dynamic> preprocessingInfo;
 
+  /// Parsed details from a Bank Cheque MICR codeline if mode is ScanMode.cheque.
+  final BankChequeInfo? bankChequeInfo;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
@@ -127,6 +132,7 @@ class ScanResult {
     this.consensusConfidence,
     Map<String, bool>? verifications,
     Map<String, dynamic>? preprocessingInfo,
+    this.bankChequeInfo,
   })  : timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
         metadata = metadata ?? {},
@@ -158,6 +164,7 @@ class ScanResult {
     double? consensusConfidence,
     Map<String, bool>? verifications,
     Map<String, dynamic>? preprocessingInfo,
+    BankChequeInfo? bankChequeInfo,
   }) {
     return ScanResult(
       mode: mode ?? this.mode,
@@ -183,6 +190,7 @@ class ScanResult {
       consensusConfidence: consensusConfidence ?? this.consensusConfidence,
       verifications: verifications ?? this.verifications,
       preprocessingInfo: preprocessingInfo ?? this.preprocessingInfo,
+      bankChequeInfo: bankChequeInfo ?? this.bankChequeInfo,
     );
   }
 
@@ -229,6 +237,7 @@ class ScanResult {
       'consensusConfidence': consensusConfidence,
       'verifications': verifications,
       'preprocessingInfo': preprocessingInfo,
+      'bankChequeInfo': bankChequeInfo?.toJson(),
     };
   }
 

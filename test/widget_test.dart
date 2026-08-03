@@ -35,6 +35,7 @@ void main() {
       enableReceipt: false,
       enableBusinessCard: false,
       enableMultiCode: false,
+      enableCheque: false,
     );
     expect(aadhaarOnly.activeEnabledModes, [ScanMode.aadhaar]);
 

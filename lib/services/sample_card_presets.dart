@@ -7,6 +7,7 @@ import '../core/parsers/driving_license_parser.dart';
 import '../core/parsers/vin_parser.dart';
 import '../core/parsers/invoice_parser.dart';
 import '../core/parsers/receipt_parser.dart';
+import '../core/parsers/bank_cheque_parser.dart';
 import '../core/parsers/business_card_parser.dart';
 
 /// Container class for preset sample card scan items.
@@ -227,6 +228,15 @@ Web: www.alexandria.tech
             mode: ScanMode.multiCode,
           ),
         ];
+
+      case ScanMode.cheque:
+        return [
+          SampleItem(
+            label: 'Bank Cheque MICR Codeline',
+            payload: 'c000123c 021000021a 001234c 10\nPAY TO THE ORDER OF: John Doe\nAMOUNT: \$1,250.00\nDATE: 15/08/2026\nBANK: JPMorgan Chase Bank',
+            mode: ScanMode.cheque,
+          ),
+        ];
     }
   }
 
@@ -371,6 +381,17 @@ Web: www.alexandria.tech
             'headYaw': 1.2,
             'headPitch': -0.5,
           },
+        );
+
+      case ScanMode.cheque:
+        final chequeInfo = BankChequeParser.parse(sample.payload);
+        return ScanResult(
+          mode: ScanMode.cheque,
+          rawValue: sample.payload,
+          isValid: chequeInfo.isValidMicr,
+          confidence: 0.98,
+          fields: chequeInfo.toFields(),
+          bankChequeInfo: chequeInfo,
         );
     }
   }

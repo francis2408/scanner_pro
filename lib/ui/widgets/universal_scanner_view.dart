@@ -78,6 +78,9 @@ class UniversalScannerView extends StatefulWidget {
   /// Whether Multi-Code scanning mode is enabled.
   final bool enableMultiCode;
 
+  /// Whether Bank Cheque MICR mode is enabled.
+  final bool enableCheque;
+
   /// Optional theme configuration for customizing UI design and colors.
   final ScannerUiTheme? theme;
 
@@ -135,6 +138,7 @@ class UniversalScannerView extends StatefulWidget {
     this.enableReceipt = true,
     this.enableBusinessCard = true,
     this.enableMultiCode = true,
+    this.enableCheque = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -171,6 +175,7 @@ class UniversalScannerView extends StatefulWidget {
     this.enableReceipt = true,
     this.enableBusinessCard = true,
     this.enableMultiCode = true,
+    this.enableCheque = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -236,6 +241,7 @@ class UniversalScannerView extends StatefulWidget {
     if (enableReceipt) modes.add(ScanMode.receipt);
     if (enableBusinessCard) modes.add(ScanMode.businessCard);
     if (enableMultiCode) modes.add(ScanMode.multiCode);
+    if (enableCheque) modes.add(ScanMode.cheque);
 
     return modes.isEmpty ? ScanMode.values : List.unmodifiable(modes);
   }

@@ -3,7 +3,7 @@ description: "Universal Flutter Scanner Pro SDK (francis2408/scanner_pro) - Ente
 repository: https://github.com/francis2408/scanner_pro
 homepage: https://github.com/francis2408/scanner_pro
 
-version: 2.0.0
+version: 2.1.0
 
 environment:
   sdk: ^3.9.2

@@ -46,6 +46,9 @@ enum ScanMode {
 
   /// Multi-Code simultaneous QR and 1D/2D Barcode scanner mode.
   multiCode,
+
+  /// Bank Cheque MICR codeline and routing number parser mode.
+  cheque,
 }
 
 /// Extension methods for [ScanMode] providing UI metadata.
@@ -83,6 +86,8 @@ extension ScanModeExtension on ScanMode {
         return 'Business Card';
       case ScanMode.multiCode:
         return 'Multi-Code';
+      case ScanMode.cheque:
+        return 'Bank Cheque';
     }
   }
 
@@ -119,6 +124,8 @@ extension ScanModeExtension on ScanMode {
         return 'Name, title, company, email, phone & web';
       case ScanMode.multiCode:
         return 'Simultaneous multi-QR and barcode pass';
+      case ScanMode.cheque:
+        return 'MICR codeline, cheque #, routing & account #';
     }
   }
 
@@ -155,6 +162,8 @@ extension ScanModeExtension on ScanMode {
         return Icons.contact_page_rounded;
       case ScanMode.multiCode:
         return Icons.filter_center_focus_rounded;
+      case ScanMode.cheque:
+        return Icons.account_balance_rounded;
     }
   }
 
@@ -191,6 +200,8 @@ extension ScanModeExtension on ScanMode {
         return 'Center business card front inside guide';
       case ScanMode.multiCode:
         return 'Hold camera steady over multiple codes';
+      case ScanMode.cheque:
+        return 'Align bottom MICR codeline of cheque within reticle';
     }
   }
 
@@ -222,6 +233,8 @@ extension ScanModeExtension on ScanMode {
         return 1.2;
       case ScanMode.face:
         return 0.85;
+      case ScanMode.cheque:
+        return 2.6;
     }
   }
 
@@ -241,6 +254,8 @@ extension ScanModeExtension on ScanMode {
         return 'ID & Cards';
       case ScanMode.vin:
         return 'Automotive';
+      case ScanMode.cheque:
+        return 'Financial';
       case ScanMode.ocr:
       case ScanMode.face:
       case ScanMode.document:

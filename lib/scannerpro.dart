@@ -4,6 +4,7 @@ export 'core/models/scanner_options.dart';
 export 'core/models/scanner_stats.dart';
 export 'core/models/scanner_theme.dart';
 export 'core/parsers/aadhaar_parser.dart';
+export 'core/parsers/bank_cheque_parser.dart';
 export 'core/parsers/business_card_parser.dart';
 export 'core/parsers/driving_license_parser.dart';
 export 'core/parsers/face_scanner_parser.dart';

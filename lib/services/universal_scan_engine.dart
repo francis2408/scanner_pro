@@ -6,6 +6,7 @@ import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_mode.dart';
 import '../core/parsers/aadhaar_parser.dart';
+import '../core/parsers/bank_cheque_parser.dart';
 import '../core/parsers/business_card_parser.dart';
 import '../core/parsers/driving_license_parser.dart';
 import '../core/parsers/face_scanner_parser.dart';
@@ -110,6 +111,7 @@ class UniversalScanEngine {
       case ScanMode.invoice:
       case ScanMode.receipt:
       case ScanMode.businessCard:
+      case ScanMode.cheque:
         rawResult = await _processTextAndDocuments(
           inputImage,
           mode,
@@ -440,6 +442,18 @@ class UniversalScanEngine {
         break;
       case ScanMode.businessCard:
         result = BusinessCardParser.parse(rawText);
+        break;
+      case ScanMode.cheque:
+        final chequeInfo = BankChequeParser.parse(rawText);
+        result = ScanResult(
+          mode: ScanMode.cheque,
+          rawValue: rawText,
+          isValid: chequeInfo.isValidMicr,
+          confidence: chequeInfo.isValidMicr ? 0.98 : 0.85,
+          imagePath: imagePath,
+          fields: chequeInfo.toFields(),
+          bankChequeInfo: chequeInfo,
+        );
         break;
       case ScanMode.ocr:
       default:

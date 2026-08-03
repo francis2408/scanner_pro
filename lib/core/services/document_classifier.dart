@@ -10,6 +10,7 @@ enum DocumentCategory {
   drivingLicense,
   businessCard,
   vin,
+  cheque,
   barcode,
   generalDocument,
 }
@@ -56,6 +57,17 @@ class DocumentClassifier {
 
     final upper = rawText.toUpperCase();
     final keywords = <String>[];
+
+    // Bank Cheque check
+    if (upper.contains('PAY TO THE ORDER OF') || upper.contains('CHEQUE') || upper.contains('MICR') || upper.contains('⑈') || upper.contains('⑆') || (mode == ScanMode.cheque) || RegExp(r'c[0-9]{6}c\s*[0-9]{9}a').hasMatch(rawText)) {
+      keywords.addAll(['CHEQUE', 'MICR', 'BANK']);
+      return DocumentClassificationResult(
+        category: DocumentCategory.cheque,
+        confidence: 0.98,
+        detectedKeywords: keywords,
+        description: 'Bank Cheque Financial Document',
+      );
+    }
 
     // Passport MRZ check
     if (upper.contains('P<') || upper.contains('PASSPORT') || upper.contains('ICAO') || (mode == ScanMode.passport)) {
