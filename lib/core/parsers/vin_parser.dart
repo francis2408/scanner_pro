@@ -124,6 +124,14 @@ class VinParser {
     return remainder == 10 ? 'X' : remainder.toString();
   }
 
+  /// Validates a 17-character VIN payload checking structure and position 9 check digit.
+  static bool validateVin(String vin) {
+    final clean = vin.trim().toUpperCase();
+    if (clean.length != 17 || !_vinRegex.hasMatch(clean)) return false;
+    final expectedCheckDigit = calculateCheckDigit(clean);
+    return clean[8] == expectedCheckDigit;
+  }
+
   /// Decodes Position 10 character into vehicle model year range.
   static String decodeModelYear(String pos10) {
     final char = pos10.toUpperCase();

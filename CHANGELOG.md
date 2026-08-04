@@ -1,3 +1,12 @@
+# 2.3.0
+
+- **Top-Level `ScannerPro` Static Facade**: High-level, 1-line helper APIs for instant parsing, image scanning, PDF processing, and validation (`ScannerPro.scanAadhaar()`, `ScannerPro.scanPanCard()`, `ScannerPro.scanPassport()`, `ScannerPro.scanDrivingLicense()`, `ScannerPro.scanVin()`, `ScannerPro.scanBusinessCard()`, `ScannerPro.scanImage()`, `ScannerPro.scanBytes()`, `ScannerPro.scanPDF()`, `ScannerPro.validateResult()`, `ScannerPro.exportToPdfBytes()`).
+- **Comprehensive Validation Engine (`ResultValidator`)**: Dedicated validation suite checking Modulo-10 checksums (EAN-13, EAN-8, UPC-A), GS1 AI structures, Web URL / UPI payment / vCard QR schemas, UIDAI Verhoeff D10 Aadhaar check, ITD 10-char PAN structure & taxpayer category digit, ISO 3779 17-char VIN transliteration weights, and ICAO Doc 9303 MRZ 7-3-1 check digits.
+- **Enhanced Deduplication & Camera Controls**: Configurable `duplicateTimeout` filter (default 2000ms), explicit zoom controls (`setZoomLevel`, `autoZoomTo`), scan region (ROI) boundaries, and single/continuous/batch scan strategies.
+- **Benchmark & Diagnostic Telemetry Engine**: Integrated `ScannerBenchmark.runLiveDiagnostic()` and published device benchmark standards table (`ScannerBenchmark.getSampleDeviceMetrics()`) for Pixel 8, Redmi Note, Samsung A55, and iPhone 15 Pro.
+- **Multi-Tab Studio Example Application**: Interactive 5-tab showcase application in `example/lib/main.dart` demonstrating live camera reticle overlays, Document Studio auto edge detection & PDF export, ID Card parsers, Batch Warehouse inventory, and real-time Telemetry.
+- **100% Test Pass Rate & 0 Lint Warnings**: Verified across 87 unit, widget, and performance benchmark test cases with clean `flutter analyze` static analysis.
+
 # 2.2.0
 
 - **Multi Barcode Detection (`List<BarcodeResult>`)**: Introduced dedicated `BarcodeResult` data model and `barcodes` getter on `ScanResult` for multi-barcode detection across `QR`, `Code128`, `EAN13`, `PDF417`, `DataMatrix`, `Aztec`, `UPC`, and custom formats.

@@ -33,5 +33,7 @@ export 'ui/widgets/result_bottom_sheet.dart';
 export 'ui/widgets/scanner_camera_preview.dart';
 export 'ui/widgets/scanner_overlay_painter.dart';
 export 'ui/widgets/universal_scanner_view.dart';
+export 'core/validators/result_validator.dart';
+export 'scannerpro_facade.dart';
 export 'scanner_face.dart';
 export 'package:google_mlkit_commons/google_mlkit_commons.dart';

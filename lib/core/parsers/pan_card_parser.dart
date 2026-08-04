@@ -31,6 +31,12 @@ class PanCardParser {
         'Taxpayer Category ($statusChar)';
   }
 
+  /// Validates whether a string matches valid 10-character PAN structure.
+  static bool validatePan(String pan) {
+    final clean = pan.trim().toUpperCase();
+    return _panRegex.hasMatch(clean);
+  }
+
   static String? _extractPanCandidate(String uppercaseText) {
     Match? match = _panRegex.firstMatch(uppercaseText);
     if (match != null) return match.group(0);
