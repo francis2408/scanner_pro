@@ -49,6 +49,12 @@ enum ScanMode {
 
   /// Bank Cheque MICR codeline and routing number parser mode.
   cheque,
+
+  /// Generic ID Card scanner mode for government-issued identity documents.
+  idCard,
+
+  /// Vehicle license plate recognition mode.
+  licensePlate,
 }
 
 /// Extension methods for [ScanMode] providing UI metadata.
@@ -88,6 +94,10 @@ extension ScanModeExtension on ScanMode {
         return 'Multi-Code';
       case ScanMode.cheque:
         return 'Bank Cheque';
+      case ScanMode.idCard:
+        return 'ID Card';
+      case ScanMode.licensePlate:
+        return 'License Plate';
     }
   }
 
@@ -126,6 +136,10 @@ extension ScanModeExtension on ScanMode {
         return 'Simultaneous multi-QR and barcode pass';
       case ScanMode.cheque:
         return 'MICR codeline, cheque #, routing & account #';
+      case ScanMode.idCard:
+        return 'Generic government-issued ID card scanning';
+      case ScanMode.licensePlate:
+        return 'Vehicle license plate text recognition';
     }
   }
 
@@ -164,6 +178,10 @@ extension ScanModeExtension on ScanMode {
         return Icons.filter_center_focus_rounded;
       case ScanMode.cheque:
         return Icons.account_balance_rounded;
+      case ScanMode.idCard:
+        return Icons.badge_outlined;
+      case ScanMode.licensePlate:
+        return Icons.directions_car_filled_rounded;
     }
   }
 
@@ -202,6 +220,10 @@ extension ScanModeExtension on ScanMode {
         return 'Hold camera steady over multiple codes';
       case ScanMode.cheque:
         return 'Align bottom MICR codeline of cheque within reticle';
+      case ScanMode.idCard:
+        return 'Position ID card front side inside guide frame';
+      case ScanMode.licensePlate:
+        return 'Center vehicle license plate within frame';
     }
   }
 
@@ -235,6 +257,10 @@ extension ScanModeExtension on ScanMode {
         return 0.85;
       case ScanMode.cheque:
         return 2.6;
+      case ScanMode.idCard:
+        return 1.58;
+      case ScanMode.licensePlate:
+        return 3.0;
     }
   }
 
@@ -262,6 +288,10 @@ extension ScanModeExtension on ScanMode {
       case ScanMode.invoice:
       case ScanMode.receipt:
         return 'Vision AI';
+      case ScanMode.idCard:
+        return 'ID & Cards';
+      case ScanMode.licensePlate:
+        return 'Automotive';
     }
   }
 }

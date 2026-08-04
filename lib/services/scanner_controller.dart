@@ -16,6 +16,7 @@ import '../core/services/feedback_service.dart';
 import '../core/services/json_exporter.dart';
 import '../core/services/scan_history_controller.dart';
 import '../core/services/scanner_analytics.dart';
+import '../core/services/multi_scan_session.dart';
 import 'isolate_frame_processor.dart';
 import 'universal_scan_engine.dart';
 
@@ -1013,6 +1014,53 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  MultiScanSession? _activeSession;
+
+  /// Currently active multi-scan session (null if no session active).
+  MultiScanSession? get activeSession => _activeSession;
+
+  /// Starts a new multi-scan session.
+  MultiScanSession startSession({String? name, int? maxItems}) {
+    _activeSession = MultiScanSession(
+      name: name,
+      enableDuplicateFilter: options.enableDuplicateFilter,
+      maxItems: maxItems ?? options.maxBatchCount,
+    );
+    _activeSession!.start();
+    notifyListeners();
+    return _activeSession!;
+  }
+
+  /// Ends the active multi-scan session.
+  SessionStats? endSession() {
+    if (_activeSession == null) return null;
+    _activeSession!.complete();
+    final stats = _activeSession!.getStats();
+    notifyListeners();
+    return stats;
+  }
+
+  /// Sets manual focus point on camera viewport coordinates (0.0 to 1.0).
+  Future<void> setFocusPoint(Offset point) async {
+    _lastTapFocusPoint = point;
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setFocusPoint(point);
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
+  /// Sets camera exposure compensation offset.
+  Future<void> setExposureCompensation(double offset) async {
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setExposureOffset(offset);
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
   /// Sets flashlight torch brightness level.
   Future<void> setTorchBrightness(double level) async {
     _torchLevel = level.clamp(0.0, 1.0);
@@ -1064,6 +1112,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
     // Record session telemetry analytics
     analytics.recordScan(result);
+
+    // Forward to active multi-scan session if active
+    if (_activeSession != null && _activeSession!.isActive) {
+      _activeSession!.addResult(result);
+    }
 
     // Audio and haptic feedback
     if (result.isValid) {

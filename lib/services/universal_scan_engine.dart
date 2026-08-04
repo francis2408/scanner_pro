@@ -123,6 +123,8 @@ class UniversalScanEngine {
       case ScanMode.receipt:
       case ScanMode.businessCard:
       case ScanMode.cheque:
+      case ScanMode.idCard:
+      case ScanMode.licensePlate:
         rawResult = await _processTextAndDocuments(
           inputImage,
           mode,

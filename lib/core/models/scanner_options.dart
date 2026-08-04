@@ -222,6 +222,30 @@ class ScannerOptions {
   /// Dynamic Region of Interest (ROI) adjustment based on detected target bounding box.
   final bool enableAdaptiveRoi;
 
+  /// Whether to encrypt scan results before local storage.
+  final bool enableEncryptedStorage;
+
+  /// Password for encrypted scan storage (required if [enableEncryptedStorage] is true).
+  final String? encryptionPassword;
+
+  /// Whether to enable cloud synchronization of scan results.
+  final bool enableCloudSync;
+
+  /// REST API endpoint URL for cloud sync (required if [enableCloudSync] is true).
+  final String? cloudSyncEndpoint;
+
+  /// Whether to apply watermark to scanned document exports.
+  final bool enableWatermark;
+
+  /// Watermark text to apply on exported documents.
+  final String? watermarkText;
+
+  /// Image compression quality factor (0.0 = max compression, 1.0 = no compression).
+  final double imageCompressionQuality;
+
+  /// Default export format for scan results (pdf, jpg, png).
+  final String exportFormat;
+
   /// Explicit pixel area ROI scan bounds (alias for [rectScanArea]).
   Rect? get scanArea => rectScanArea;
 
@@ -275,6 +299,14 @@ class ScannerOptions {
     this.consensusFrameCount = 3,
     this.consensusAccuracyThreshold = 0.98,
     this.enableAdaptiveRoi = true,
+    this.enableEncryptedStorage = false,
+    this.encryptionPassword,
+    this.enableCloudSync = false,
+    this.cloudSyncEndpoint,
+    this.enableWatermark = false,
+    this.watermarkText,
+    this.imageCompressionQuality = 0.85,
+    this.exportFormat = 'pdf',
   });
 
   /// Factory constructor supporting explicit [scanArea], [allowDuplicates], and [duplicateDelay] parameters.
@@ -456,6 +488,14 @@ class ScannerOptions {
     int? consensusFrameCount,
     double? consensusAccuracyThreshold,
     bool? enableAdaptiveRoi,
+    bool? enableEncryptedStorage,
+    String? encryptionPassword,
+    bool? enableCloudSync,
+    String? cloudSyncEndpoint,
+    bool? enableWatermark,
+    String? watermarkText,
+    double? imageCompressionQuality,
+    String? exportFormat,
   }) {
     return ScannerOptions(
       scanStrategy: scanStrategy ?? this.scanStrategy,
@@ -514,6 +554,17 @@ class ScannerOptions {
       consensusAccuracyThreshold:
           consensusAccuracyThreshold ?? this.consensusAccuracyThreshold,
       enableAdaptiveRoi: enableAdaptiveRoi ?? this.enableAdaptiveRoi,
+      enableEncryptedStorage:
+          enableEncryptedStorage ?? this.enableEncryptedStorage,
+      encryptionPassword: encryptionPassword ?? this.encryptionPassword,
+      enableCloudSync: enableCloudSync ?? this.enableCloudSync,
+      cloudSyncEndpoint: cloudSyncEndpoint ?? this.cloudSyncEndpoint,
+      enableWatermark: enableWatermark ?? this.enableWatermark,
+      watermarkText: watermarkText ?? this.watermarkText,
+      imageCompressionQuality:
+          imageCompressionQuality ?? this.imageCompressionQuality,
+      exportFormat: exportFormat ?? this.exportFormat,
     );
   }
 }
+

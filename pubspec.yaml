@@ -1,9 +1,9 @@
 name: scannerpro
-description: "Universal Flutter scanning SDK with 16 Vision AI modes, offline OCR, MICR/MRZ/VIN parsers, adaptive FPS, PDF export, and AI document classification."
+description: "Universal Flutter scanning SDK with 18 Vision AI modes, offline OCR, MICR/MRZ/VIN parsers, image compression, encrypted storage, cloud sync, and PDF export."
 repository: https://github.com/francis2408/scanner_pro
 homepage: https://github.com/francis2408/scanner_pro
 
-version: 2.3.0
+version: 2.4.0
 
 environment:
   sdk: ^3.9.2

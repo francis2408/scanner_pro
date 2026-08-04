@@ -147,11 +147,23 @@ class ScanResult {
   /// Explicit list of individual detected barcodes in multi-barcode scanning mode.
   final List<BarcodeResult>? detectedBarcodes;
 
+  /// Session identifier for multi-scan session tracking.
+  final String? sessionId;
+
+  /// Export format used (PDF, JPG, PNG) for export metadata tracking.
+  final String? exportFormat;
+
+  /// Encryption status indicator for encrypted storage tracking.
+  final String? encryptionStatus;
+
+  /// Whether a watermark has been applied to this scan's output.
+  final bool watermarkApplied;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
     required this.rawValue,
-    required this.fields,
+    Map<String, String>? fields,
     this.isValid = true,
     this.confidence = 1.0,
     DateTime? timestamp,
@@ -174,7 +186,12 @@ class ScanResult {
     Map<String, dynamic>? preprocessingInfo,
     this.bankChequeInfo,
     this.detectedBarcodes,
-  })  : timestamp = timestamp ?? DateTime.now(),
+    this.sessionId,
+    this.exportFormat,
+    this.encryptionStatus,
+    this.watermarkApplied = false,
+  })  : fields = fields ?? const {},
+        timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
         metadata = metadata ?? {},
         verifications = verifications ?? const {},
@@ -238,6 +255,10 @@ class ScanResult {
     Map<String, bool>? verifications,
     Map<String, dynamic>? preprocessingInfo,
     BankChequeInfo? bankChequeInfo,
+    String? sessionId,
+    String? exportFormat,
+    String? encryptionStatus,
+    bool? watermarkApplied,
   }) {
     return ScanResult(
       mode: mode ?? this.mode,
@@ -264,6 +285,10 @@ class ScanResult {
       verifications: verifications ?? this.verifications,
       preprocessingInfo: preprocessingInfo ?? this.preprocessingInfo,
       bankChequeInfo: bankChequeInfo ?? this.bankChequeInfo,
+      sessionId: sessionId ?? this.sessionId,
+      exportFormat: exportFormat ?? this.exportFormat,
+      encryptionStatus: encryptionStatus ?? this.encryptionStatus,
+      watermarkApplied: watermarkApplied ?? this.watermarkApplied,
     );
   }
 
@@ -311,6 +336,10 @@ class ScanResult {
       'verifications': verifications,
       'preprocessingInfo': preprocessingInfo,
       'bankChequeInfo': bankChequeInfo?.toJson(),
+      'sessionId': sessionId,
+      'exportFormat': exportFormat,
+      'encryptionStatus': encryptionStatus,
+      'watermarkApplied': watermarkApplied,
     };
   }
 

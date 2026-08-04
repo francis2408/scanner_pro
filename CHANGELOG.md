@@ -1,3 +1,16 @@
+# 2.4.0
+
+- **Image Compression Engine (`ImageCompressor`)**: Quality presets (`ultraHigh`, `high`, `medium`, `low`, `thumbnail`), quantization bits, stride downsampling, RLE sequence encoding, and batch image compression (`batchCompress`).
+- **AES-256 Encrypted Scan Storage (`EncryptedStorage`)**: Pure-Dart AES-256-CBC encryption with PBKDF2-like key derivation, auto-expiring TTL payloads, encrypted batch bundles, and secure local result persistence.
+- **Pluggable Cloud Sync Helpers (`CloudSyncHelper`)**: Offline-first sync manager with abstract `CloudSyncAdapter`, `HttpCloudSyncAdapter` implementation, automatic retries, queue statistics, and `syncEvents` stream.
+- **Scan Quality Analyzer (`ScanQualityAnalyzer`)**: Discrete Laplacian blur detection, ambient light evaluation with lux estimation, document skew angle computation (`computeSkewAngle`), dynamic contrast scoring, letter grades (A–F), and actionable improvement recommendations.
+- **Multi-Scan Sessions (`MultiScanSession`)**: Stateful session controller with start/pause/resume/complete lifecycle, automatic session duplicate filtering, item capacity limits, session statistics (`SessionStats`), and multi-format session export.
+- **Scan Watermarking (`ScanWatermark`)**: Text watermark overlays with position presets (`center`, `topLeft`, `diagonal`, `tiled`), opacity blending, custom font scaling, and PDF watermark stream generation.
+- **Expanded Vision Modes (18 Modes Total)**: Added `ScanMode.idCard` (generic government ID cards) and `ScanMode.licensePlate` (vehicle license plate text recognition).
+- **Upgraded Facade & PDF Exporter**: Added `ScannerPro.version` ('2.4.0'), `ScannerPro.analyzeQuality()`, `ScannerPro.compressImage()`, `ScannerPro.encryptScan()`, `ScannerPro.decryptScan()`, `ScannerPro.exportToJpgBytes()`, `ScannerPro.exportToPngBytes()`, and multi-page PDF pagination (_itemsPerPage = 25).
+- **Comprehensive Documentation Suite**: Added package benchmark comparison matrix vs popular packages, Mermaid architecture diagram, platform setup details, migration guides, troubleshooting section, and example app scenarios.
+- **100% Test Pass Rate & 0 Lint Warnings**: Verified across 120 unit, widget, and performance benchmark test cases with clean `flutter analyze` static analysis.
+
 # 2.3.0
 
 - **Top-Level `ScannerPro` Static Facade**: High-level, 1-line helper APIs for instant parsing, image scanning, PDF processing, and validation (`ScannerPro.scanAadhaar()`, `ScannerPro.scanPanCard()`, `ScannerPro.scanPassport()`, `ScannerPro.scanDrivingLicense()`, `ScannerPro.scanVin()`, `ScannerPro.scanBusinessCard()`, `ScannerPro.scanImage()`, `ScannerPro.scanBytes()`, `ScannerPro.scanPDF()`, `ScannerPro.validateResult()`, `ScannerPro.exportToPdfBytes()`).

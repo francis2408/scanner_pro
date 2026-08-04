@@ -81,6 +81,12 @@ class UniversalScannerView extends StatefulWidget {
   /// Whether Bank Cheque MICR mode is enabled.
   final bool enableCheque;
 
+  /// Whether generic ID Card scanning mode is enabled.
+  final bool enableIdCard;
+
+  /// Whether License Plate scanning mode is enabled.
+  final bool enableLicensePlate;
+
   /// Optional theme configuration for customizing UI design and colors.
   final ScannerUiTheme? theme;
 
@@ -139,6 +145,8 @@ class UniversalScannerView extends StatefulWidget {
     this.enableBusinessCard = true,
     this.enableMultiCode = true,
     this.enableCheque = true,
+    this.enableIdCard = true,
+    this.enableLicensePlate = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -176,6 +184,8 @@ class UniversalScannerView extends StatefulWidget {
     this.enableBusinessCard = true,
     this.enableMultiCode = true,
     this.enableCheque = true,
+    this.enableIdCard = true,
+    this.enableLicensePlate = true,
     this.theme,
     this.primaryAccentColor,
     this.backgroundColor,
@@ -242,6 +252,8 @@ class UniversalScannerView extends StatefulWidget {
     if (enableBusinessCard) modes.add(ScanMode.businessCard);
     if (enableMultiCode) modes.add(ScanMode.multiCode);
     if (enableCheque) modes.add(ScanMode.cheque);
+    if (enableIdCard) modes.add(ScanMode.idCard);
+    if (enableLicensePlate) modes.add(ScanMode.licensePlate);
 
     return modes.isEmpty ? ScanMode.values : List.unmodifiable(modes);
   }

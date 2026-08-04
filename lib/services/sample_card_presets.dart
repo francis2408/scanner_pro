@@ -237,6 +237,24 @@ Web: www.alexandria.tech
             mode: ScanMode.cheque,
           ),
         ];
+
+      case ScanMode.idCard:
+        return [
+          SampleItem(
+            label: 'Government Identity Card',
+            payload: 'NATIONAL ID: ID-987654321\nNAME: Jane Doe\nDOB: 15/05/1990\nNATIONALITY: US',
+            mode: ScanMode.idCard,
+          ),
+        ];
+
+      case ScanMode.licensePlate:
+        return [
+          SampleItem(
+            label: 'Vehicle License Plate',
+            payload: 'ABC-1234',
+            mode: ScanMode.licensePlate,
+          ),
+        ];
     }
   }
 
@@ -392,6 +410,33 @@ Web: www.alexandria.tech
           confidence: 0.98,
           fields: chequeInfo.toFields(),
           bankChequeInfo: chequeInfo,
+        );
+
+      case ScanMode.idCard:
+        return ScanResult(
+          mode: ScanMode.idCard,
+          rawValue: sample.payload,
+          isValid: true,
+          confidence: 0.95,
+          fields: {
+            'Card Type': 'National Identity Card',
+            'ID Number': 'ID-987654321',
+            'Name': 'Jane Doe',
+            'DOB': '15/05/1990',
+            'Nationality': 'US',
+          },
+        );
+
+      case ScanMode.licensePlate:
+        return ScanResult(
+          mode: ScanMode.licensePlate,
+          rawValue: sample.payload,
+          isValid: true,
+          confidence: 0.96,
+          fields: {
+            'Plate Number': sample.payload,
+            'Format': 'Standard Vehicle License Plate',
+          },
         );
     }
   }

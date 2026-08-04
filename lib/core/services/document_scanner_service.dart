@@ -140,4 +140,114 @@ class DocumentScannerService {
     }
     return Uint8List.fromList(compressed);
   }
+
+  /// Analyzes blur severity of a grayscale image buffer using Laplacian variance.
+  ///
+  /// Returns a severity string: 'sharp', 'mild', 'moderate', or 'heavy'.
+  static String analyzeBlurLevel(Uint8List grayBytes, {required int width, required int height}) {
+    if (grayBytes.isEmpty || width <= 2 || height <= 2) return 'heavy';
+
+    double sumSquared = 0;
+    double sum = 0;
+    int count = 0;
+
+    for (int y = 1; y < height - 1; y++) {
+      for (int x = 1; x < width - 1; x++) {
+        final idx = y * width + x;
+        if (idx + width < grayBytes.length && idx - width >= 0) {
+          final lap = 4 * grayBytes[idx] -
+              grayBytes[idx - 1] - grayBytes[idx + 1] -
+              grayBytes[idx - width] - grayBytes[idx + width];
+          sum += lap;
+          sumSquared += lap * lap;
+          count++;
+        }
+      }
+    }
+
+    if (count == 0) return 'heavy';
+    final mean = sum / count;
+    final variance = (sumSquared / count) - (mean * mean);
+
+    if (variance.abs() > 500) return 'sharp';
+    if (variance.abs() > 200) return 'mild';
+    if (variance.abs() > 50) return 'moderate';
+    return 'heavy';
+  }
+
+  /// Analyzes ambient light condition from grayscale frame luminance.
+  ///
+  /// Returns a condition string: 'too_low', 'low', 'normal', 'bright', or 'overexposed'.
+  static String analyzeLightCondition(Uint8List grayBytes) {
+    if (grayBytes.isEmpty) return 'too_low';
+
+    double totalLum = 0;
+    for (int i = 0; i < grayBytes.length; i++) {
+      totalLum += grayBytes[i];
+    }
+    final avgLum = totalLum / grayBytes.length / 255.0;
+
+    if (avgLum < 0.08) return 'too_low';
+    if (avgLum < 0.20) return 'low';
+    if (avgLum < 0.70) return 'normal';
+    if (avgLum < 0.90) return 'bright';
+    return 'overexposed';
+  }
+
+  /// Computes the estimated skew angle in degrees from edge gradients.
+  ///
+  /// Returns the angle in degrees (0.0 = perfectly aligned).
+  static double computeSkewAngle(Uint8List grayBytes, {required int width, required int height}) {
+    if (grayBytes.isEmpty || width <= 2 || height <= 2) return 0.0;
+
+    double sumAngle = 0;
+    int edgeCount = 0;
+
+    for (int y = 1; y < height - 1; y++) {
+      for (int x = 1; x < width - 1; x++) {
+        final idx = y * width + x;
+        if (idx + width < grayBytes.length && idx - width >= 0) {
+          final gx = grayBytes[idx + 1] - grayBytes[idx - 1];
+          final gy = grayBytes[idx + width] - grayBytes[idx - width];
+          final magnitude = math.sqrt(gx * gx + gy * gy);
+          if (magnitude > 30) {
+            sumAngle += math.atan2(gy.toDouble(), gx.toDouble()) * (180.0 / math.pi);
+            edgeCount++;
+          }
+        }
+      }
+    }
+
+    if (edgeCount == 0) return 0.0;
+    final avgAngle = sumAngle / edgeCount;
+    final skew = (avgAngle % 90.0).abs();
+    return skew > 45.0 ? 90.0 - skew : skew;
+  }
+
+  /// Applies automatic skew correction by rotating pixel rows based on detected angle.
+  ///
+  /// Returns corrected image bytes (same dimensions).
+  static Uint8List autoCorrectSkew(Uint8List grayBytes, {required int width, required int height}) {
+    final angle = computeSkewAngle(grayBytes, width: width, height: height);
+    if (angle < 1.0) return grayBytes; // No correction needed
+
+    // Simple row-shift skew correction
+    final result = Uint8List(grayBytes.length);
+    final shiftPerRow = (angle / height * width / 90.0).round();
+
+    for (int y = 0; y < height; y++) {
+      final rowShift = (shiftPerRow * y).round().clamp(0, width - 1);
+      for (int x = 0; x < width; x++) {
+        final srcIdx = y * width + x;
+        final dstX = (x + rowShift) % width;
+        final dstIdx = y * width + dstX;
+        if (srcIdx < grayBytes.length && dstIdx < result.length) {
+          result[dstIdx] = grayBytes[srcIdx];
+        }
+      }
+    }
+
+    return result;
+  }
 }
+

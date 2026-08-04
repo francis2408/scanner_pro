@@ -36,6 +36,8 @@ void main() {
       enableBusinessCard: false,
       enableMultiCode: false,
       enableCheque: false,
+      enableIdCard: false,
+      enableLicensePlate: false,
     );
     expect(aadhaarOnly.activeEnabledModes, [ScanMode.aadhaar]);
 
