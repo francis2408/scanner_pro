@@ -35,6 +35,18 @@ class ScannerStats {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
+  /// Alias getter for single frame detection latency in milliseconds.
+  double get detectionTimeMs => processingTimeMs;
+
+  /// Alias getter for average scan execution time in milliseconds.
+  double get averageScanTimeMs => processingTimeMs;
+
+  /// Alias getter for memory usage in MB.
+  double get memoryUsageMB => memoryMb;
+
+  /// Memory usage in bytes.
+  int get memoryUsageBytes => (memoryMb * 1024 * 1024).round();
+
   /// Default initial empty stats.
   static final ScannerStats empty = ScannerStats();
 

@@ -4,6 +4,43 @@ import 'scanner_mode.dart';
 
 import '../parsers/bank_cheque_parser.dart';
 
+/// Detailed result structure for individual detected barcodes in multi-barcode scanning mode.
+class BarcodeResult {
+  final String format;
+  final String rawValue;
+  final String? displayValue;
+  final Rect? boundingBox;
+  final List<Offset>? corners;
+  final Uint8List? rawBytes;
+
+  const BarcodeResult({
+    required this.format,
+    required this.rawValue,
+    this.displayValue,
+    this.boundingBox,
+    this.corners,
+    this.rawBytes,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'format': format,
+        'rawValue': rawValue,
+        'displayValue': displayValue ?? rawValue,
+        'boundingBox': boundingBox != null
+            ? {
+                'left': boundingBox!.left,
+                'top': boundingBox!.top,
+                'width': boundingBox!.width,
+                'height': boundingBox!.height,
+              }
+            : null,
+        'corners': corners?.map((c) => {'x': c.dx, 'y': c.dy}).toList(),
+      };
+
+  @override
+  String toString() => 'BarcodeResult(format: $format, rawValue: $rawValue)';
+}
+
 /// Document image quality metrics calculated during isolate preprocessing.
 class DocumentQualityScore {
   final double blurScore;
@@ -107,6 +144,9 @@ class ScanResult {
   /// Parsed details from a Bank Cheque MICR codeline if mode is ScanMode.cheque.
   final BankChequeInfo? bankChequeInfo;
 
+  /// Explicit list of individual detected barcodes in multi-barcode scanning mode.
+  final List<BarcodeResult>? detectedBarcodes;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
@@ -133,11 +173,44 @@ class ScanResult {
     Map<String, bool>? verifications,
     Map<String, dynamic>? preprocessingInfo,
     this.bankChequeInfo,
+    this.detectedBarcodes,
   })  : timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
         metadata = metadata ?? {},
         verifications = verifications ?? const {},
         preprocessingInfo = preprocessingInfo ?? const {};
+
+  /// Convenience getter returning list of [BarcodeResult] detected in frame.
+  List<BarcodeResult> get barcodes {
+    if (detectedBarcodes != null && detectedBarcodes!.isNotEmpty) {
+      return detectedBarcodes!;
+    }
+    if (multiResults != null && multiResults!.isNotEmpty) {
+      return multiResults!
+          .map((res) => BarcodeResult(
+                format: res.format ?? 'UNKNOWN',
+                rawValue: res.rawValue,
+                displayValue: res.rawValue,
+                boundingBox: res.boundingBox,
+                corners: res.corners,
+                rawBytes: res.rawBytes,
+              ))
+          .toList();
+    }
+    if (rawValue.isNotEmpty) {
+      return [
+        BarcodeResult(
+          format: format ?? 'UNKNOWN',
+          rawValue: rawValue,
+          displayValue: rawValue,
+          boundingBox: boundingBox,
+          corners: corners,
+          rawBytes: rawBytes,
+        ),
+      ];
+    }
+    return const [];
+  }
 
   /// Creates a copy of [ScanResult] with updated fields.
   ScanResult copyWith({

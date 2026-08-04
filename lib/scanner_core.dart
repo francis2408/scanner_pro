@@ -3,6 +3,7 @@ export 'core/models/scanner_mode.dart';
 export 'core/models/scanner_options.dart';
 export 'core/models/scanner_theme.dart';
 export 'core/plugins/scanner_plugin.dart';
+export 'core/services/scan_history_controller.dart';
 export 'services/isolate_frame_processor.dart';
 export 'services/scanner_controller.dart';
 export 'services/universal_scan_engine.dart';

@@ -21,6 +21,7 @@ export 'core/services/document_scanner_service.dart';
 export 'core/services/feedback_service.dart';
 export 'core/services/json_exporter.dart';
 export 'core/services/pdf_exporter.dart';
+export 'core/services/scan_history_controller.dart';
 export 'core/services/scanner_analytics.dart';
 export 'core/services/scanner_benchmark.dart';
 export 'services/external_lookup_service.dart';

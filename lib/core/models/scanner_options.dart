@@ -222,6 +222,15 @@ class ScannerOptions {
   /// Dynamic Region of Interest (ROI) adjustment based on detected target bounding box.
   final bool enableAdaptiveRoi;
 
+  /// Explicit pixel area ROI scan bounds (alias for [rectScanArea]).
+  Rect? get scanArea => rectScanArea;
+
+  /// Alias getter for duplicate filter setting (inverted).
+  bool get allowDuplicates => !enableDuplicateFilter;
+
+  /// Alias getter for duplicate timeout delay.
+  Duration get duplicateDelay => duplicateTimeout;
+
   /// Constructs a [ScannerOptions] instance.
   const ScannerOptions({
     this.scanStrategy = ScanStrategy.continuous,
@@ -267,6 +276,100 @@ class ScannerOptions {
     this.consensusAccuracyThreshold = 0.98,
     this.enableAdaptiveRoi = true,
   });
+
+  /// Factory constructor supporting explicit [scanArea], [allowDuplicates], and [duplicateDelay] parameters.
+  factory ScannerOptions.custom({
+    ScanStrategy scanStrategy = ScanStrategy.continuous,
+    ScanWindow? scanWindow = ScanWindow.centerReticle,
+    Rect? scanArea,
+    bool? allowDuplicates,
+    Duration? duplicateDelay,
+    int frameThrottleMs = 50,
+    int targetFrameRate = 20,
+    bool enableAdaptiveFps = true,
+    bool enableAdaptiveFrameSkipping = true,
+    bool enablePauseOnStaticFrame = true,
+    bool enableProgressiveResolution = true,
+    Duration duplicateTimeout = const Duration(milliseconds: 2000),
+    bool enableDuplicateFilter = true,
+    bool enableDetectionCache = true,
+    Duration detectionCacheTimeout = const Duration(milliseconds: 2000),
+    int frameQueueCapacity = 3,
+    bool enableIsolateProcessing = true,
+    bool enableImageEnhancement = true,
+    bool enableBlurDetection = true,
+    bool enableAutoBrightnessCheck = true,
+    bool autoTorchInLowLight = false,
+    double lowLightThreshold = 0.25,
+    bool enableAutoZoom = true,
+    bool autoResetZoomAfterScan = true,
+    double autoZoomThreshold = 0.15,
+    bool continuousAutofocus = true,
+    bool enableMultiCodeDetection = true,
+    int maxMultiCodeCount = 10,
+    bool enableScanHistory = true,
+    int maxHistorySize = 50,
+    int? maxBatchCount,
+    double minConfidence = 0.70,
+    List<String>? allowedFormats,
+    bool enableSound = true,
+    bool enableVibration = true,
+    double torchLevel = 1.0,
+    bool isFocusLocked = false,
+    bool enableAutoCapture = true,
+    double autoCaptureQualityThreshold = 0.85,
+    int autoCaptureSteadyFrames = 3,
+    bool enableMultiFrameConsensus = true,
+    int consensusFrameCount = 3,
+    double consensusAccuracyThreshold = 0.98,
+    bool enableAdaptiveRoi = true,
+  }) {
+    return ScannerOptions(
+      scanStrategy: scanStrategy,
+      scanWindow: scanWindow,
+      rectScanArea: scanArea,
+      duplicateTimeout: duplicateDelay ?? duplicateTimeout,
+      enableDuplicateFilter:
+          allowDuplicates != null ? !allowDuplicates : enableDuplicateFilter,
+      frameThrottleMs: frameThrottleMs,
+      targetFrameRate: targetFrameRate,
+      enableAdaptiveFps: enableAdaptiveFps,
+      enableAdaptiveFrameSkipping: enableAdaptiveFrameSkipping,
+      enablePauseOnStaticFrame: enablePauseOnStaticFrame,
+      enableProgressiveResolution: enableProgressiveResolution,
+      enableDetectionCache: enableDetectionCache,
+      detectionCacheTimeout: detectionCacheTimeout,
+      frameQueueCapacity: frameQueueCapacity,
+      enableIsolateProcessing: enableIsolateProcessing,
+      enableImageEnhancement: enableImageEnhancement,
+      enableBlurDetection: enableBlurDetection,
+      enableAutoBrightnessCheck: enableAutoBrightnessCheck,
+      autoTorchInLowLight: autoTorchInLowLight,
+      lowLightThreshold: lowLightThreshold,
+      enableAutoZoom: enableAutoZoom,
+      autoResetZoomAfterScan: autoResetZoomAfterScan,
+      autoZoomThreshold: autoZoomThreshold,
+      continuousAutofocus: continuousAutofocus,
+      enableMultiCodeDetection: enableMultiCodeDetection,
+      maxMultiCodeCount: maxMultiCodeCount,
+      enableScanHistory: enableScanHistory,
+      maxHistorySize: maxHistorySize,
+      maxBatchCount: maxBatchCount,
+      minConfidence: minConfidence,
+      allowedFormats: allowedFormats,
+      enableSound: enableSound,
+      enableVibration: enableVibration,
+      torchLevel: torchLevel,
+      isFocusLocked: isFocusLocked,
+      enableAutoCapture: enableAutoCapture,
+      autoCaptureQualityThreshold: autoCaptureQualityThreshold,
+      autoCaptureSteadyFrames: autoCaptureSteadyFrames,
+      enableMultiFrameConsensus: enableMultiFrameConsensus,
+      consensusFrameCount: consensusFrameCount,
+      consensusAccuracyThreshold: consensusAccuracyThreshold,
+      enableAdaptiveRoi: enableAdaptiveRoi,
+    );
+  }
 
   /// High-performance preset optimized for speed and low CPU consumption.
   static const ScannerOptions highPerformance = ScannerOptions(

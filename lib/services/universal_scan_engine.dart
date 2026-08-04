@@ -73,6 +73,17 @@ class UniversalScanEngine {
     }
   }
 
+  /// Processes an image loaded from a Flutter asset path.
+  Future<ScanResult> processAsset(String assetPath, ScanMode mode) async {
+    initialize();
+    try {
+      final inputImage = InputImage.fromFilePath(assetPath);
+      return await processInputImage(inputImage, mode, imagePath: assetPath);
+    } catch (e) {
+      return ScanResult.error(mode, 'Failed to process asset image: ${e.toString()}');
+    }
+  }
+
   /// Processes an ML Kit [InputImage] for the specified [ScanMode].
   Future<ScanResult> processInputImage(
     InputImage inputImage,
@@ -172,6 +183,7 @@ class UniversalScanEngine {
         'aiClassification': classification.toJson(),
       },
       multiResults: rawResult.multiResults,
+      detectedBarcodes: rawResult.detectedBarcodes,
     );
   }
 
@@ -285,6 +297,15 @@ class UniversalScanEngine {
       return DrivingLicenseParser.parse(rawValue);
     }
 
+    final List<BarcodeResult> barcodeList = detectedCodes.map((c) {
+      final subFmt = _determineBarcodeValueType(c);
+      return BarcodeResult(
+        format: formatStr == 'MULTI_CODE_BATCH' ? subFmt : formatStr,
+        rawValue: c,
+        displayValue: c,
+      );
+    }).toList();
+
     return ScanResult(
       mode: mode,
       rawValue: rawValue,
@@ -294,6 +315,7 @@ class UniversalScanEngine {
       format: formatStr,
       fields: fields,
       multiResults: subResults.isNotEmpty ? subResults : null,
+      detectedBarcodes: barcodeList,
       metadata: {
         'format': formatStr,
         'type': typeStr,

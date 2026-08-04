@@ -14,6 +14,7 @@ import '../core/models/scanner_stats.dart';
 import '../core/services/csv_exporter.dart';
 import '../core/services/feedback_service.dart';
 import '../core/services/json_exporter.dart';
+import '../core/services/scan_history_controller.dart';
 import '../core/services/scanner_analytics.dart';
 import 'isolate_frame_processor.dart';
 import 'universal_scan_engine.dart';
@@ -22,6 +23,9 @@ import 'universal_scan_engine.dart';
 /// adaptive frame processing, background isolate execution, ROI cropping,
 /// performance metrics telemetry, scan history, auto-zoom, and low-light controls.
 class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
+  /// Dedicated scan history controller for recording, searching, and exporting scan results.
+  late final ScanHistoryController historyController;
+
   /// Initial mode when scanner initializes.
   ScanMode _selectedMode;
 
@@ -132,6 +136,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         _resolutionPreset = resolutionPreset,
         _scanEngine = scanEngine ?? UniversalScanEngine(),
         _imagePicker = imagePicker ?? ImagePicker() {
+    historyController =
+        ScanHistoryController(maxHistorySize: options.maxHistorySize);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -955,6 +961,69 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     );
     _emitScanDataEvent(result);
     return result;
+  }
+
+  /// Scans raw byte buffer directly from memory.
+  Future<ScanResult> scanBytes(
+    Uint8List bytes, {
+    ScanMode? mode,
+    int? width,
+    int? height,
+  }) async {
+    return await processBytes(
+      bytes,
+      mode: mode,
+      width: width ?? 640,
+      height: height ?? 480,
+    );
+  }
+
+  /// Scans an image loaded from a Flutter asset path.
+  Future<ScanResult> scanAsset(String assetPath, {ScanMode? mode}) async {
+    final targetMode = mode ?? _selectedMode;
+    final result = await _scanEngine.processAsset(assetPath, targetMode);
+    _emitScanDataEvent(result);
+    return result;
+  }
+
+  /// Performs pinch zoom calculations based on gesture scale factor.
+  Future<void> pinchZoom(double scale) async {
+    await setZoomLevel(_currentZoomLevel * scale);
+  }
+
+  /// Sets exposure compensation offset value.
+  Future<void> setExposureOffset(double offset) async {
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setExposureOffset(offset);
+      } catch (_) {}
+    }
+  }
+
+  /// Toggles continuous autofocus mode.
+  Future<void> setAutofocus(bool enabled) async {
+    _isFocusLocked = !enabled;
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setFocusMode(
+          enabled ? cam.FocusMode.auto : cam.FocusMode.locked,
+        );
+      } catch (_) {}
+    }
+    notifyListeners();
+  }
+
+  /// Sets flashlight torch brightness level.
+  Future<void> setTorchBrightness(double level) async {
+    _torchLevel = level.clamp(0.0, 1.0);
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setFlashMode(
+          _torchLevel > 0 ? cam.FlashMode.torch : cam.FlashMode.off,
+        );
+      } catch (_) {}
+    }
+    notifyListeners();
   }
 
   /// Processes an image file from a local path.
