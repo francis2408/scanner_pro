@@ -138,6 +138,55 @@ class ScanQualityReport {
       light.condition == LightCondition.tooLow ||
       light.condition == LightCondition.low;
 
+  factory ScanQualityReport.fromJson(Map<String, dynamic> json) {
+    final gradeStr = json['grade'] as String? ?? 'A';
+    final grade = QualityGrade.values.firstWhere(
+      (g) => g.letterGrade == gradeStr,
+      orElse: () => QualityGrade.excellent,
+    );
+
+    return ScanQualityReport(
+      grade: grade,
+      overallScore: (json['overallScore'] as num?)?.toDouble() ?? 1.0,
+      blur: json['blur'] != null
+          ? BlurAnalysis.fromJson(json['blur'] as Map<String, dynamic>)
+          : const BlurAnalysis(
+              severity: BlurSeverity.sharp,
+              score: 0.0,
+              laplacianVariance: 500.0,
+            ),
+      light: json['light'] != null
+          ? LightAnalysis.fromJson(json['light'] as Map<String, dynamic>)
+          : const LightAnalysis(
+              condition: LightCondition.normal,
+              averageLuminance: 0.5,
+              estimatedLux: 500.0,
+              torchRecommended: false,
+            ),
+      skew: json['skew'] != null
+          ? SkewAnalysis.fromJson(json['skew'] as Map<String, dynamic>)
+          : const SkewAnalysis(
+              angleDegrees: 0.0,
+              isAligned: true,
+              correctionAngle: 0.0,
+            ),
+      contrast: json['contrast'] != null
+          ? ContrastAnalysis.fromJson(json['contrast'] as Map<String, dynamic>)
+          : const ContrastAnalysis(
+              contrastRatio: 0.8,
+              isAdequate: true,
+              dynamicRange: 200,
+            ),
+      recommendations: (json['recommendations'] as List?)
+              ?.map((r) => r.toString())
+              .toList() ??
+          const [],
+      analysisTime: json['analysisTimeMs'] != null
+          ? Duration(milliseconds: json['analysisTimeMs'] as int)
+          : Duration.zero,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'grade': grade.letterGrade,
         'overallScore': overallScore,
@@ -176,6 +225,20 @@ class BlurAnalysis {
   bool get isSharp =>
       severity == BlurSeverity.sharp || severity == BlurSeverity.mild;
 
+  factory BlurAnalysis.fromJson(Map<String, dynamic> json) {
+    final sevStr = json['severity'] as String? ?? 'sharp';
+    final severity = BlurSeverity.values.firstWhere(
+      (s) => s.name == sevStr,
+      orElse: () => BlurSeverity.sharp,
+    );
+
+    return BlurAnalysis(
+      severity: severity,
+      score: (json['score'] as num?)?.toDouble() ?? 0.0,
+      laplacianVariance: (json['laplacianVariance'] as num?)?.toDouble() ?? 500.0,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'severity': severity.name,
         'score': score,
@@ -205,6 +268,21 @@ class LightAnalysis {
     required this.torchRecommended,
   });
 
+  factory LightAnalysis.fromJson(Map<String, dynamic> json) {
+    final condStr = json['condition'] as String? ?? 'normal';
+    final condition = LightCondition.values.firstWhere(
+      (c) => c.name == condStr,
+      orElse: () => LightCondition.normal,
+    );
+
+    return LightAnalysis(
+      condition: condition,
+      averageLuminance: (json['averageLuminance'] as num?)?.toDouble() ?? 0.5,
+      estimatedLux: (json['estimatedLux'] as num?)?.toDouble() ?? 500.0,
+      torchRecommended: json['torchRecommended'] as bool? ?? false,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'condition': condition.name,
         'averageLuminance': averageLuminance,
@@ -230,6 +308,14 @@ class SkewAnalysis {
     required this.correctionAngle,
   });
 
+  factory SkewAnalysis.fromJson(Map<String, dynamic> json) {
+    return SkewAnalysis(
+      angleDegrees: (json['angleDegrees'] as num?)?.toDouble() ?? 0.0,
+      isAligned: json['isAligned'] as bool? ?? true,
+      correctionAngle: (json['correctionAngle'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'angleDegrees': angleDegrees,
         'isAligned': isAligned,
@@ -253,6 +339,14 @@ class ContrastAnalysis {
     required this.isAdequate,
     required this.dynamicRange,
   });
+
+  factory ContrastAnalysis.fromJson(Map<String, dynamic> json) {
+    return ContrastAnalysis(
+      contrastRatio: (json['contrastRatio'] as num?)?.toDouble() ?? 0.8,
+      isAdequate: json['isAdequate'] as bool? ?? true,
+      dynamicRange: json['dynamicRange'] as int? ?? 200,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'contrastRatio': contrastRatio,

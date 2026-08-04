@@ -1,3 +1,9 @@
+# 2.4.1
+
+- **Symmetric JSON Deserialization (`ScanResult.fromJson`)**: Added full `ScanResult.fromJson`, `BarcodeResult.fromJson`, `DocumentQualityScore.fromJson`, `ScanQualityReport.fromJson`, and `BankChequeInfo.fromJson` factory constructors for 100% symmetric JSON serialization & deserialization across all enterprise modules.
+- **Enhanced `ScanResult` Copying & Export**: Added missing `detectedBarcodes` parameter to `ScanResult.copyWith` and serialized `detectedBarcodes` in `ScanResult.toJson()`.
+- **Code Refinements & Zero Lints**: Cleaned up type casts, removed unused imports, and achieved 100% test pass rate across 122 unit, widget, and benchmark test cases.
+
 # 2.4.0
 
 - **Image Compression Engine (`ImageCompressor`)**: Quality presets (`ultraHigh`, `high`, `medium`, `low`, `thumbnail`), quantization bits, stride downsampling, RLE sequence encoding, and batch image compression (`batchCompress`).

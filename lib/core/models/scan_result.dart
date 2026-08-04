@@ -22,6 +22,40 @@ class BarcodeResult {
     this.rawBytes,
   });
 
+  factory BarcodeResult.fromJson(Map<String, dynamic> json) {
+    Rect? box;
+    if (json['boundingBox'] != null && json['boundingBox'] is Map) {
+      final b = json['boundingBox'] as Map<String, dynamic>;
+      box = Rect.fromLTWH(
+        (b['left'] as num).toDouble(),
+        (b['top'] as num).toDouble(),
+        (b['width'] as num).toDouble(),
+        (b['height'] as num).toDouble(),
+      );
+    }
+
+    List<Offset>? points;
+    if (json['corners'] != null && json['corners'] is List) {
+      points = (json['corners'] as List)
+          .map((c) {
+            final m = c as Map<String, dynamic>;
+            return Offset(
+              (m['x'] as num).toDouble(),
+              (m['y'] as num).toDouble(),
+            );
+          })
+          .toList();
+    }
+
+    return BarcodeResult(
+      format: json['format'] as String? ?? 'UNKNOWN',
+      rawValue: json['rawValue'] as String? ?? '',
+      displayValue: json['displayValue'] as String?,
+      boundingBox: box,
+      corners: points,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'format': format,
         'rawValue': rawValue,
@@ -56,6 +90,16 @@ class DocumentQualityScore {
     required this.overallQuality,
     required this.isHighQuality,
   });
+
+  factory DocumentQualityScore.fromJson(Map<String, dynamic> json) {
+    return DocumentQualityScore(
+      blurScore: (json['blurScore'] as num?)?.toDouble() ?? 0.0,
+      brightnessScore: (json['brightnessScore'] as num?)?.toDouble() ?? 0.0,
+      contrastScore: (json['contrastScore'] as num?)?.toDouble() ?? 0.0,
+      overallQuality: (json['overallQuality'] as num?)?.toDouble() ?? 0.0,
+      isHighQuality: json['isHighQuality'] as bool? ?? false,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'blurScore': blurScore,
@@ -255,6 +299,7 @@ class ScanResult {
     Map<String, bool>? verifications,
     Map<String, dynamic>? preprocessingInfo,
     BankChequeInfo? bankChequeInfo,
+    List<BarcodeResult>? detectedBarcodes,
     String? sessionId,
     String? exportFormat,
     String? encryptionStatus,
@@ -285,6 +330,7 @@ class ScanResult {
       verifications: verifications ?? this.verifications,
       preprocessingInfo: preprocessingInfo ?? this.preprocessingInfo,
       bankChequeInfo: bankChequeInfo ?? this.bankChequeInfo,
+      detectedBarcodes: detectedBarcodes ?? this.detectedBarcodes,
       sessionId: sessionId ?? this.sessionId,
       exportFormat: exportFormat ?? this.exportFormat,
       encryptionStatus: encryptionStatus ?? this.encryptionStatus,
@@ -336,11 +382,86 @@ class ScanResult {
       'verifications': verifications,
       'preprocessingInfo': preprocessingInfo,
       'bankChequeInfo': bankChequeInfo?.toJson(),
+      'detectedBarcodes': detectedBarcodes?.map((b) => b.toJson()).toList(),
       'sessionId': sessionId,
       'exportFormat': exportFormat,
       'encryptionStatus': encryptionStatus,
       'watermarkApplied': watermarkApplied,
     };
+  }
+
+  /// Deserializes a [ScanResult] from a JSON map.
+  factory ScanResult.fromJson(Map<String, dynamic> json) {
+    final modeStr = json['mode'] as String? ?? 'qr';
+    final mode = ScanMode.values.firstWhere(
+      (m) => m.name == modeStr,
+      orElse: () => ScanMode.qr,
+    );
+
+    final fieldsRaw = json['fields'] as Map<String, dynamic>?;
+    final fields = fieldsRaw?.map((k, v) => MapEntry(k, v.toString())) ??
+        const <String, String>{};
+
+    final metadataRaw = json['metadata'] as Map<String, dynamic>?;
+    final metadata = metadataRaw ?? const <String, dynamic>{};
+
+    final verificationsRaw = json['verifications'] as Map<String, dynamic>?;
+    final verifications = verificationsRaw?.map((k, v) => MapEntry(k, v == true)) ??
+        const <String, bool>{};
+
+    final preprocessingRaw = json['preprocessingInfo'] as Map<String, dynamic>?;
+    final preprocessingInfo = preprocessingRaw ?? const <String, dynamic>{};
+
+    List<BarcodeResult>? barcodes;
+    if (json['detectedBarcodes'] != null && json['detectedBarcodes'] is List) {
+      barcodes = (json['detectedBarcodes'] as List)
+          .map((b) => BarcodeResult.fromJson(b as Map<String, dynamic>))
+          .toList();
+    }
+
+    DocumentQualityScore? quality;
+    if (json['qualityScore'] != null && json['qualityScore'] is Map) {
+      quality = DocumentQualityScore.fromJson(
+          json['qualityScore'] as Map<String, dynamic>);
+    }
+
+    BankChequeInfo? cheque;
+    if (json['bankChequeInfo'] != null && json['bankChequeInfo'] is Map) {
+      cheque = BankChequeInfo.fromJson(
+          json['bankChequeInfo'] as Map<String, dynamic>);
+    }
+
+    return ScanResult(
+      mode: mode,
+      rawValue: json['rawValue'] as String? ?? '',
+      fields: fields,
+      isValid: json['isValid'] as bool? ?? true,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
+      timestamp: json['timestamp'] != null
+          ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      imagePath: json['imagePath'] as String?,
+      format: json['format'] as String?,
+      documentCategory: json['documentCategory'] as String?,
+      isDuplicate: json['isDuplicate'] as bool? ?? false,
+      enhancementsApplied: (json['enhancementsApplied'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
+      scanDuration: json['scanDurationMs'] != null
+          ? Duration(milliseconds: json['scanDurationMs'] as int)
+          : null,
+      metadata: metadata,
+      qualityScore: quality,
+      consensusConfidence: (json['consensusConfidence'] as num?)?.toDouble(),
+      verifications: verifications,
+      preprocessingInfo: preprocessingInfo,
+      bankChequeInfo: cheque,
+      detectedBarcodes: barcodes,
+      sessionId: json['sessionId'] as String?,
+      exportFormat: json['exportFormat'] as String?,
+      encryptionStatus: json['encryptionStatus'] as String?,
+      watermarkApplied: json['watermarkApplied'] as bool? ?? false,
+    );
   }
 
   /// Creates a failed or error [ScanResult] instance.

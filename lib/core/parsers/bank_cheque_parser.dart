@@ -40,6 +40,26 @@ class BankChequeInfo {
     };
   }
 
+  factory BankChequeInfo.fromJson(Map<String, dynamic> json) {
+    final extraRaw = json['extraDetails'] as Map<String, dynamic>?;
+    final extraDetails = extraRaw?.map((k, v) => MapEntry(k, v.toString())) ??
+        const <String, String>{};
+
+    return BankChequeInfo(
+      rawMicrLine: json['rawMicrLine'] as String? ?? '',
+      chequeNumber: json['chequeNumber'] as String? ?? '',
+      routingNumber: json['routingNumber'] as String? ?? '',
+      accountNumber: json['accountNumber'] as String? ?? '',
+      transactionCode: json['transactionCode'] as String? ?? '',
+      bankName: json['bankName'] as String?,
+      ifscCode: json['ifscCode'] as String?,
+      chequeDate: json['chequeDate'] as String?,
+      amount: (json['amount'] as num?)?.toDouble(),
+      isValidMicr: json['isValidMicr'] as bool? ?? false,
+      extraDetails: extraDetails,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'rawMicrLine': rawMicrLine,
         'chequeNumber': chequeNumber,

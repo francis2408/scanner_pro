@@ -1,6 +1,5 @@
 import 'dart:convert';
 import '../models/scan_result.dart';
-import '../models/scanner_mode.dart';
 
 /// Serializes batch scan results or history logs into structured JSON format.
 class JsonExporter {
@@ -52,32 +51,6 @@ class JsonExporter {
   }
 
   static ScanResult _fromJsonMap(Map<String, dynamic> json) {
-    final modeStr = json['mode'] as String? ?? 'qr';
-    final mode = _parseMode(modeStr);
-
-    final fieldsRaw = json['fields'] as Map<String, dynamic>?;
-    final fields = fieldsRaw?.map((k, v) => MapEntry(k, v.toString())) ??
-        const <String, String>{};
-
-    return ScanResult(
-      mode: mode,
-      rawValue: json['rawValue'] as String? ?? '',
-      fields: fields,
-      isValid: json['isValid'] as bool? ?? true,
-      confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
-          : DateTime.now(),
-      format: json['format'] as String?,
-      documentCategory: json['documentCategory'] as String?,
-      isDuplicate: json['isDuplicate'] as bool? ?? false,
-    );
-  }
-
-  static ScanMode _parseMode(String name) {
-    return ScanMode.values.firstWhere(
-      (m) => m.name == name,
-      orElse: () => ScanMode.qr,
-    );
+    return ScanResult.fromJson(json);
   }
 }

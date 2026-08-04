@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import '../models/scan_result.dart';
-import '../models/scanner_mode.dart';
 
 /// Encrypted data envelope containing ciphertext, IV, salt, and metadata.
 class EncryptedScanData {
@@ -264,34 +263,7 @@ class EncryptedStorage {
 
   /// Reconstructs a [ScanResult] from a JSON map.
   static ScanResult _scanResultFromJson(Map<String, dynamic> json) {
-    final modeStr = json['mode'] as String? ?? 'qr';
-    final mode = _parseScanMode(modeStr);
-
-    final fieldsRaw = json['fields'] as Map<String, dynamic>?;
-    final fields = fieldsRaw?.map((k, v) => MapEntry(k, v.toString())) ??
-        const <String, String>{};
-
-    return ScanResult(
-      mode: mode,
-      rawValue: json['rawValue'] as String? ?? '',
-      fields: fields,
-      isValid: json['isValid'] as bool? ?? true,
-      confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
-          : DateTime.now(),
-      format: json['format'] as String?,
-      documentCategory: json['documentCategory'] as String?,
-      isDuplicate: json['isDuplicate'] as bool? ?? false,
-    );
-  }
-
-  /// Parses ScanMode from string name.
-  static ScanMode _parseScanMode(String name) {
-    return ScanMode.values.firstWhere(
-      (m) => m.name == name,
-      orElse: () => ScanMode.qr,
-    );
+    return ScanResult.fromJson(json);
   }
 }
 

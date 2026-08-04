@@ -324,9 +324,9 @@ void main() {
     // 7. ScannerPro Facade v2.4.0 Static APIs
     // -------------------------------------------------------------------------
     group('ScannerPro Facade v2.4.0 Static APIs', () {
-      test('version constant returns 2.4.0', () {
-        expect(ScannerPro.version, equals('2.4.0'));
-        expect(scannerProVersion, equals('2.4.0'));
+      test('version constant returns 2.4.1', () {
+        expect(ScannerPro.version, equals('2.4.1'));
+        expect(scannerProVersion, equals('2.4.1'));
       });
 
       test('compressImage static helper returns CompressionResult', () {
@@ -387,6 +387,48 @@ void main() {
         expect(mode.title, equals('License Plate'));
         expect(mode.category, equals('Automotive'));
         expect(mode.targetAspectRatio, equals(3.0));
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 9. Symmetric JSON Deserialization Tests
+    // -------------------------------------------------------------------------
+    group('Symmetric JSON Deserialization', () {
+      test('ScanResult.fromJson reconstructs full result object', () {
+        final original = ScanResult(
+          mode: ScanMode.licensePlate,
+          rawValue: 'ABC-1234',
+          fields: {'Plate Number': 'ABC-1234'},
+          isValid: true,
+          confidence: 0.96,
+          sessionId: 'session_999',
+          exportFormat: 'pdf',
+          encryptionStatus: 'encrypted',
+          watermarkApplied: true,
+        );
+
+        final jsonMap = original.toJson();
+        final reconstructed = ScanResult.fromJson(jsonMap);
+
+        expect(reconstructed.mode, equals(ScanMode.licensePlate));
+        expect(reconstructed.rawValue, equals('ABC-1234'));
+        expect(reconstructed.sessionId, equals('session_999'));
+        expect(reconstructed.exportFormat, equals('pdf'));
+        expect(reconstructed.encryptionStatus, equals('encrypted'));
+        expect(reconstructed.watermarkApplied, isTrue);
+      });
+
+      test('ScanQualityReport.fromJson reconstructs report object', () {
+        final bytes = Uint8List.fromList(List.generate(200 * 200, (i) => i % 256));
+        final report = ScanQualityAnalyzer.analyze(bytes, width: 200, height: 200);
+
+        final jsonMap = report.toJson();
+        final reconstructed = ScanQualityReport.fromJson(jsonMap);
+
+        expect(reconstructed.grade.letterGrade, equals(report.grade.letterGrade));
+        expect(reconstructed.overallScore, equals(report.overallScore));
+        expect(reconstructed.blur.severity, equals(report.blur.severity));
+        expect(reconstructed.light.condition, equals(report.light.condition));
       });
     });
   });
