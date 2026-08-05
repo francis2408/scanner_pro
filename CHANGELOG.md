@@ -1,3 +1,8 @@
+# 2.5.2
+
+- **Updated ML Kit Dependency Constraints**: Expanded dependency bounds for `google_mlkit_barcode_scanning` (`>=0.13.0 <0.16.0`), `google_mlkit_face_detection` (`>=0.11.0 <0.15.0`), and `google_mlkit_text_recognition` (`>=0.14.0 <0.17.0`) to support the latest stable releases.
+- **Pana Package Health**: Added missing `CHANGELOG.md` version tag for v2.5.2 to restore 160/160 pub points.
+
 # 2.5.1
 
 - **Scanbot SDK Compatibility & Multi-Page Document Session**: Added `DocumentPage`, `DocumentScanSession` for multi-page document capture, polygon quad boundaries, page filtering, reordering, and PDF export (`ScanbotSdk` static facade & `ScanbotDocumentScannerView`).
