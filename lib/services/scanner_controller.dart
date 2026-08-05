@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:camera/camera.dart' as cam;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/models/camera_facing.dart';
@@ -135,12 +136,13 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     this.onFrame,
     UniversalScanEngine? scanEngine,
     ImagePicker? imagePicker,
-  })  : _selectedMode = initialMode,
-        _resolutionPreset = resolutionPreset,
-        _scanEngine = scanEngine ?? UniversalScanEngine(),
-        _imagePicker = imagePicker ?? ImagePicker() {
-    historyController =
-        ScanHistoryController(maxHistorySize: options.maxHistorySize);
+  }) : _selectedMode = initialMode,
+       _resolutionPreset = resolutionPreset,
+       _scanEngine = scanEngine ?? UniversalScanEngine(),
+       _imagePicker = imagePicker ?? ImagePicker() {
+    historyController = ScanHistoryController(
+      maxHistorySize: options.maxHistorySize,
+    );
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -170,7 +172,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Hardware camera lens facing direction (`mobile_scanner` API compatibility).
   CameraFacing get facing {
-    if (_availableCameras.isEmpty || _selectedCameraIndex >= _availableCameras.length) {
+    if (_availableCameras.isEmpty ||
+        _selectedCameraIndex >= _availableCameras.length) {
       return CameraFacing.back;
     }
     final lens = _availableCameras[_selectedCameraIndex].lensDirection;
@@ -380,7 +383,10 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         }
         onFrame?.call(image);
 
-        if (_isPaused || _isProcessingLiveFrame || _isAnalyzingEvent || !_isInitialized) {
+        if (_isPaused ||
+            _isProcessingLiveFrame ||
+            _isAnalyzingEvent ||
+            !_isInitialized) {
           return;
         }
 
@@ -392,7 +398,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         int dynamicThrottleMs = targetThrottle;
 
         if (_lastFrameProcessedTime != null &&
-            now.difference(_lastFrameProcessedTime!).inMilliseconds < dynamicThrottleMs) {
+            now.difference(_lastFrameProcessedTime!).inMilliseconds <
+                dynamicThrottleMs) {
           _droppedFrameCount++;
           return;
         }
@@ -415,11 +422,14 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               computeLuminosity: options.enableAutoBrightnessCheck,
               enableEnhancement: options.enableImageEnhancement,
               enableBlurDetection: options.enableBlurDetection,
-              previousFrameHash: options.enablePauseOnStaticFrame ? _lastFrameHash : null,
+              previousFrameHash: options.enablePauseOnStaticFrame
+                  ? _lastFrameHash
+                  : null,
             );
 
-            final isolateResult =
-                await IsolateFrameProcessor.processFrame(taskData);
+            final isolateResult = await IsolateFrameProcessor.processFrame(
+              taskData,
+            );
 
             if (_isDisposed) return;
 
@@ -433,7 +443,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               isolateResult.isLowLight,
             );
 
-            if (options.enablePauseOnStaticFrame && isolateResult.isStaticFrame) {
+            if (options.enablePauseOnStaticFrame &&
+                isolateResult.isStaticFrame) {
               _droppedFrameCount++;
               return;
             }
@@ -442,14 +453,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               _triggerAutoRefocus();
             }
 
-            final inputImage = _inputImageFromBytes(
-              isolateResult.processedBytes,
-              isolateResult.croppedWidth,
-              isolateResult.croppedHeight,
-              image.planes.isNotEmpty
-                  ? image.planes[0].bytesPerRow
-                  : image.width,
-            );
+            final inputImage = _inputImageFromCameraImage(image);
 
             if (inputImage != null && !_isDisposed) {
               final result = await _scanEngine.processInputImage(
@@ -475,7 +479,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
                 }
                 final consensusResult = _processMultiFrameConsensus(enriched);
                 if (consensusResult != null) {
-                  _checkAutoZoomAndEmit(consensusResult, image.width, image.height);
+                  _checkAutoZoomAndEmit(
+                    consensusResult,
+                    image.width,
+                    image.height,
+                  );
                 }
               } else {
                 _consecutiveEmptyFrameCount++;
@@ -498,7 +506,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
                 _consecutiveEmptyFrameCount = 0;
                 final consensusResult = _processMultiFrameConsensus(result);
                 if (consensusResult != null) {
-                  _checkAutoZoomAndEmit(consensusResult, image.width, image.height);
+                  _checkAutoZoomAndEmit(
+                    consensusResult,
+                    image.width,
+                    image.height,
+                  );
                 }
               } else {
                 _consecutiveEmptyFrameCount++;
@@ -517,9 +529,15 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
           if (options.enableAdaptiveFrameSkipping) {
             if (elapsedMs > 60) {
-              dynamicThrottleMs = (dynamicThrottleMs * 1.2).toInt().clamp(20, 250);
+              dynamicThrottleMs = (dynamicThrottleMs * 1.2).toInt().clamp(
+                20,
+                250,
+              );
             } else if (elapsedMs < 25) {
-              dynamicThrottleMs = (dynamicThrottleMs * 0.9).toInt().clamp(20, options.frameThrottleMs);
+              dynamicThrottleMs = (dynamicThrottleMs * 0.9).toInt().clamp(
+                20,
+                options.frameThrottleMs,
+              );
             }
           }
 
@@ -540,7 +558,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     final avgLatency = _latencyWindow.isEmpty
         ? 0.0
         : _latencyWindow.reduce((a, b) => a + b) / _latencyWindow.length;
-    final currentFps = avgLatency > 0 ? (1000.0 / (avgLatency + 15.0)).clamp(0.0, 60.0) : 0.0;
+    final currentFps = avgLatency > 0
+        ? (1000.0 / (avgLatency + 15.0)).clamp(0.0, 60.0)
+        : 0.0;
 
     _stats = ScannerStats(
       fps: currentFps,
@@ -566,7 +586,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void _checkAutoZoomAndEmit(ScanResult result, int frameWidth, int frameHeight) {
+  void _checkAutoZoomAndEmit(
+    ScanResult result,
+    int frameWidth,
+    int frameHeight,
+  ) {
     if (_isDisposed) return;
     if (options.enableAutoZoom &&
         result.boundingBox != null &&
@@ -621,7 +645,10 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
           orElse: () => result,
         );
 
-        final consensusConfidence = (0.95 + (consensusRatio * 0.04)).clamp(0.98, 0.99);
+        final consensusConfidence = (0.95 + (consensusRatio * 0.04)).clamp(
+          0.98,
+          0.99,
+        );
 
         _frameConsensusBuffer.clear();
 
@@ -635,7 +662,10 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     return null;
   }
 
-  void _evalAutoCaptureTrigger(DocumentQualityScore qualityScore, ScanResult? result) {
+  void _evalAutoCaptureTrigger(
+    DocumentQualityScore qualityScore,
+    ScanResult? result,
+  ) {
     if (!options.enableAutoCapture) return;
 
     if (qualityScore.overallQuality >= options.autoCaptureQualityThreshold &&
@@ -675,7 +705,8 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  InputImage? _inputImageFromBytes(
+  @visibleForTesting
+  InputImage? inputImageFromBytes(
     Uint8List bytes,
     int width,
     int height,
@@ -747,12 +778,17 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       final nv21 = _cachedNv21Buffer!;
       nv21.setRange(0, ySize, yBuffer);
 
+      final int pixelStride = image.planes[1].bytesPerPixel ?? 2;
       int nv21Index = ySize;
-      for (int i = 0; i < uSize && nv21Index < totalSize; i++) {
+      for (
+        int i = 0;
+        i < uSize && nv21Index < totalSize - 1;
+        i += pixelStride
+      ) {
         if (i < vSize) {
           nv21[nv21Index++] = vBuffer[i];
         }
-        if (nv21Index < totalSize) {
+        if (i < uSize) {
           nv21[nv21Index++] = uBuffer[i];
         }
       }
@@ -948,7 +984,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       return _lastResult!.multiResults!;
     }
     if (_batchResults.isNotEmpty) {
-      final filtered = _batchResults.where((r) => r.mode == targetMode).toList();
+      final filtered = _batchResults
+          .where((r) => r.mode == targetMode)
+          .toList();
       return List.unmodifiable(filtered.isNotEmpty ? filtered : _batchResults);
     }
     if (_lastResult != null && _lastResult!.isValid) {
@@ -1236,6 +1274,10 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     _lastScannedPayload = result.rawValue;
     _lastScannedTime = now;
     _lastResult = result;
+
+    log(
+      '🎯 [ScannerController] Result fetched & emitted! Total Scan Time: ${result.scanDuration?.inMilliseconds ?? 0} ms | Mode: ${result.mode.name} | Category: ${result.documentCategory} | Valid: ${result.isValid}',
+    );
 
     analytics.recordScan(result);
 

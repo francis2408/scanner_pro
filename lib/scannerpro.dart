@@ -49,4 +49,4 @@ export 'ui/widgets/universal_scanner_view.dart';
 export 'core/validators/result_validator.dart';
 export 'scannerpro_facade.dart';
 export 'scanner_face.dart';
-export 'package:google_mlkit_commons/google_mlkit_commons.dart';
+export 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';

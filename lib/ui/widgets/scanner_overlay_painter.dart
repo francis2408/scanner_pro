@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/models/scanner_mode.dart';
 import '../../core/models/scanner_theme.dart';
 
@@ -98,14 +99,13 @@ class ScannerOverlayPainter extends CustomPainter {
     );
     canvas.drawPath(path, backgroundPaint);
 
-    final effectiveBorderColor = isDetected
-        ? const Color(0xFF00E676)
-        : (theme?.reticleBorderColor ??
-            (theme?.accentColor ?? accentColor).withValues(alpha: 0.85));
+    final effectiveBorderColor =
+        theme?.reticleBorderColor ??
+        (theme?.accentColor ?? accentColor).withValues(alpha: 0.85);
     final borderPaint = Paint()
       ..color = effectiveBorderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isDetected ? 3.5 : (theme?.reticleBorderWidth ?? 2.5);
+      ..strokeWidth = theme?.reticleBorderWidth ?? 2.5;
 
     if (scanMode == ScanMode.face) {
       canvas.drawOval(scanRect, borderPaint);
@@ -117,9 +117,8 @@ class ScannerOverlayPainter extends CustomPainter {
     }
 
     if (scanMode != ScanMode.face) {
-      final effectiveCornerColor = isDetected
-          ? const Color(0xFF00E676)
-          : (theme?.reticleCornerColor ?? theme?.accentColor ?? accentColor);
+      final effectiveCornerColor =
+          theme?.reticleCornerColor ?? theme?.accentColor ?? accentColor;
       final cornerPaint = Paint()
         ..color = effectiveCornerColor
         ..style = PaintingStyle.stroke
@@ -175,9 +174,8 @@ class ScannerOverlayPainter extends CustomPainter {
 
     // Render Laser Scanline with Gradient Glow
     if (theme?.showLaserBeam ?? true) {
-      final effectiveLaserColor = isDetected
-          ? const Color(0xFF00E676)
-          : (theme?.laserBeamColor ?? theme?.accentColor ?? accentColor);
+      final effectiveLaserColor =
+          theme?.laserBeamColor ?? theme?.accentColor ?? accentColor;
       final beamY = rectTop + (rectHeight * animationValue);
 
       final glowRect = Rect.fromLTWH(
@@ -207,18 +205,6 @@ class ScannerOverlayPainter extends CustomPainter {
         Offset(rectLeft + 8, beamY),
         Offset(rectLeft + rectWidth - 8, beamY),
         beamPaint,
-      );
-    }
-
-    // Render Detected Bounding Box Highlight
-    if (detectedBoundingBox != null) {
-      final boxPaint = Paint()
-        ..color = const Color(0xFF00E676).withValues(alpha: 0.85)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(detectedBoundingBox!, const Radius.circular(8)),
-        boxPaint,
       );
     }
 
@@ -322,4 +308,3 @@ class ScannerOverlayPainter extends CustomPainter {
         oldDelegate.detectedBoundingBox != detectedBoundingBox;
   }
 }
-

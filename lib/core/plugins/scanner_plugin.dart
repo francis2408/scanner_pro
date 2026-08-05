@@ -1,4 +1,4 @@
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import '../models/scan_result.dart';
 import '../models/scanner_mode.dart';
 

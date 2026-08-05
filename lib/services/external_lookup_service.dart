@@ -31,10 +31,14 @@ class ExternalLookupService {
     final mode = result.mode;
     final cacheKey = '${mode.name}:$rawValue';
 
+    final logSnippet = rawValue.length > 50
+        ? '${rawValue.substring(0, 47)}...'
+        : rawValue;
+
     // Sub-millisecond cache hit check (<0.1 ms)
     if (_lookupCache.containsKey(cacheKey)) {
       debugPrint(
-        '⚡ [ExternalLookupService] Cache hit for "$rawValue" (<0.1ms)',
+        '⚡ [ExternalLookupService] Cache hit for "$logSnippet" (<0.1ms)',
       );
       return Map<String, String>.from(_lookupCache[cacheKey]!);
     }
@@ -42,8 +46,9 @@ class ExternalLookupService {
     final Map<String, String> apiDetails = {};
     final cleanVal = rawValue.replaceAll(RegExp(r'\s+'), '');
 
+    final stopwatch = Stopwatch()..start();
     debugPrint(
-      '🌐 [ExternalLookupService] Starting API lookup for: "$rawValue" (Mode: ${mode.name})',
+      '🌐 [ExternalLookupService] Starting API lookup for: "$logSnippet" (Mode: ${mode.name})',
     );
 
     try {
@@ -57,17 +62,24 @@ class ExternalLookupService {
 
       if (mode == ScanMode.aadhaar ||
           result.fields.containsKey('Aadhaar Number') ||
-          RegExp(r'\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b').hasMatch(rawValue)) {
+          (AadhaarParser.isAadhaarPayload(rawValue) &&
+              mode != ScanMode.qr &&
+              mode != ScanMode.barcode)) {
         final aadhaarData = await _lookupAadhaar(result, rawValue);
         apiDetails.addAll(aadhaarData);
       }
 
-      final panCandidateResult = result.fields.containsKey('PAN Number')
-          ? result
-          : PanCardParser.parse(rawValue);
-      if (mode == ScanMode.pan || panCandidateResult.isValid) {
-        final panData = await _lookupPanCard(panCandidateResult, rawValue);
-        apiDetails.addAll(panData);
+      if (mode == ScanMode.pan ||
+          (result.fields.containsKey('PAN Number') &&
+              mode != ScanMode.qr &&
+              mode != ScanMode.barcode)) {
+        final panCandidateResult = result.fields.containsKey('PAN Number')
+            ? result
+            : PanCardParser.parse(rawValue);
+        if (panCandidateResult.isValid) {
+          final panData = await _lookupPanCard(panCandidateResult, rawValue);
+          apiDetails.addAll(panData);
+        }
       }
 
       if (mode == ScanMode.passport ||
@@ -92,11 +104,12 @@ class ExternalLookupService {
         apiDetails.addAll(vinData);
       }
 
-      if (mode == ScanMode.qr ||
-          rawValue.startsWith('geo:') ||
-          rawValue.startsWith('WIFI:') ||
-          rawValue.startsWith('BEGIN:VCARD') ||
-          rawValue.startsWith('http')) {
+      if ((mode == ScanMode.qr ||
+              rawValue.startsWith('geo:') ||
+              rawValue.startsWith('WIFI:') ||
+              rawValue.startsWith('BEGIN:VCARD') ||
+              rawValue.startsWith('http')) &&
+          !AadhaarParser.isAadhaarPayload(rawValue)) {
         final qrData = await _lookupQrCode(rawValue);
         apiDetails.addAll(qrData);
       }
@@ -116,9 +129,12 @@ class ExternalLookupService {
       if (apiDetails.isEmpty &&
           rawValue.isNotEmpty &&
           !rawValue.startsWith('{') &&
-          !rawValue.startsWith('<')) {
+          !rawValue.startsWith('<') &&
+          !AadhaarParser.isAadhaarPayload(rawValue)) {
         final searchTerm = rawValue.split('\n').first.trim();
-        if (searchTerm.length >= 3 && searchTerm.length <= 60) {
+        if (searchTerm.length >= 3 &&
+            searchTerm.length <= 60 &&
+            !RegExp(r'[^\x20-\x7E]').hasMatch(searchTerm)) {
           final wikiData = await _lookupWikipedia(searchTerm);
           apiDetails.addAll(wikiData);
         }
@@ -135,6 +151,11 @@ class ExternalLookupService {
         apiDetails['API Service Status'] =
             'Fetched Live from External REST API ✓';
       }
+
+      stopwatch.stop();
+      debugPrint(
+        '✅ [ExternalLookupService] API lookup finished in ${stopwatch.elapsedMilliseconds} ms (${apiDetails.length} fields added)',
+      );
     } catch (e) {
       debugPrint('⚠️ [ExternalLookupService] Error during API lookup: $e');
       apiDetails['API Status'] =
@@ -366,7 +387,7 @@ class ExternalLookupService {
     return details;
   }
 
-  static Map<String, String> _resolveUpiBankAndApp(String handle) {
+  static Map<String, String> resolveUpiBankAndApp(String handle) {
     switch (handle) {
       case 'oksbi':
         return {
@@ -467,7 +488,7 @@ class ExternalLookupService {
         final handleMatch = RegExp(r'@([a-zA-Z0-9]+)$').firstMatch(vpa);
         if (handleMatch != null) {
           final handle = handleMatch.group(1)!.toLowerCase();
-          final bankAppInfo = _resolveUpiBankAndApp(handle);
+          final bankAppInfo = resolveUpiBankAndApp(handle);
           details['Payment App Provider'] = bankAppInfo['app']!;
           details['Associated Bank'] = bankAppInfo['bank']!;
         }

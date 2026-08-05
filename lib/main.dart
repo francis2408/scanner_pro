@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -57,6 +59,13 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
   bool _useCustomScreenDesign = false;
 
   void _onResultDetected(ScanResult result) {
+    final rawSnippet = result.rawValue.length > 60
+        ? '${result.rawValue.substring(0, 57)}...'
+        : result.rawValue.replaceAll(RegExp(r'[\r\n]+'), ' ');
+    final logMsg =
+        '📱 [MainApp] Scan result detected | Mode: ${result.mode.name} | Category: ${result.documentCategory} | Fetch Time: ${result.scanDuration?.inMilliseconds ?? 0} ms | Payload: "$rawSnippet"';
+    log(logMsg);
+    debugPrint(logMsg);
     setState(() {
       _scanHistory.insert(0, result);
       if (_scanHistory.length > 50) {
@@ -179,137 +188,6 @@ class _MainScannerDashboardState extends State<MainScannerDashboard> {
                 ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showEvaluationScoreModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD600).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.workspace_premium_rounded,
-                          color: Color(0xFFFFD600),
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ScannerPro v2.1 Evaluation',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Enterprise Scanner Performance Suite',
-                            style: TextStyle(color: Colors.white54, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF00E676)),
-                    ),
-                    child: const Text(
-                      '98 / 100 ✓',
-                      style: TextStyle(
-                        color: Color(0xFF00E676),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                ),
-                child: const Column(
-                  children: [
-                    _EvaluationScoreRow(category: 'API Design', score: '10.0 / 10'),
-                    _EvaluationScoreRow(category: 'Documentation', score: '9.8 / 10'),
-                    _EvaluationScoreRow(category: 'Ease of Integration', score: '9.9 / 10'),
-                    _EvaluationScoreRow(category: 'Performance & Engine', score: '9.8 / 10'),
-                    _EvaluationScoreRow(category: 'Platform Support (iOS/Android/Web)', score: '9.7 / 10'),
-                    _EvaluationScoreRow(category: 'Feature Completeness', score: '9.8 / 10'),
-                    _EvaluationScoreRow(category: 'Production Readiness', score: '9.8 / 10'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Performance Target Benchmarks',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _TargetMetricTile(metric: 'Camera Startup Time', target: '< 500 ms', actual: '380 ms ✓'),
-              const _TargetMetricTile(metric: 'QR Detection Latency', target: '< 80 ms', actual: '32 ms ✓'),
-              const _TargetMetricTile(metric: '1D Barcode Latency', target: '< 120 ms', actual: '45 ms ✓'),
-              const _TargetMetricTile(metric: 'Memory Allocation', target: '< 80 MB', actual: '64 MB ✓'),
-              const _TargetMetricTile(metric: 'CPU Utilization', target: '< 20%', actual: '12.4% ✓'),
-              const _TargetMetricTile(metric: 'Battery Drain Rate', target: '< 4% / hr', actual: '3.1% / hr ✓'),
-              const _TargetMetricTile(metric: 'Camera Stream FPS', target: '30–60 FPS', actual: '30 FPS Search / 15 FPS Detect ✓'),
-              const _TargetMetricTile(metric: 'Dropped Frames', target: '0 Frames', actual: '0 Frames ✓'),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00E5FF),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -444,7 +322,9 @@ UniversalScannerView.builder(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _useCustomScreenDesign ? 'Custom Screen UI' : 'Universal Scanner',
+                  _useCustomScreenDesign
+                      ? 'Custom Screen UI'
+                      : 'Universal Scanner',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -467,16 +347,17 @@ UniversalScannerView.builder(
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD600)),
-            tooltip: '98/100 Evaluation Engine',
-            onPressed: _showEvaluationScoreModal,
-          ),
-          IconButton(
             icon: Icon(
-              _useCustomScreenDesign ? Icons.dashboard_customize_rounded : Icons.brush_rounded,
-              color: _useCustomScreenDesign ? const Color(0xFF00E5FF) : Colors.white70,
+              _useCustomScreenDesign
+                  ? Icons.dashboard_customize_rounded
+                  : Icons.brush_rounded,
+              color: _useCustomScreenDesign
+                  ? const Color(0xFF00E5FF)
+                  : Colors.white70,
             ),
-            tooltip: _useCustomScreenDesign ? 'Switch to Standard UI' : 'Switch to Custom Design',
+            tooltip: _useCustomScreenDesign
+                ? 'Switch to Standard UI'
+                : 'Switch to Custom Design',
             onPressed: () {
               setState(() {
                 _useCustomScreenDesign = !_useCustomScreenDesign;
@@ -648,7 +529,9 @@ class _CustomScreenDesignViewState extends State<CustomScreenDesignView> {
                             style: TextStyle(
                               fontSize: 12,
                               color: isSelected ? Colors.black : Colors.white,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                           selected: isSelected,
@@ -671,57 +554,108 @@ class _CustomScreenDesignViewState extends State<CustomScreenDesignView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (lastResult != null && lastResult.isValid)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF161B22).withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle_rounded, color: Color(0xFF00E676)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    lastResult.mode.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  Text(
-                                    lastResult.rawValue,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                  ),
-                                ],
-                              ),
+                      GestureDetector(
+                        onTap: () =>
+                            ResultBottomSheet.show(context, lastResult),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF161B22,
+                            ).withValues(alpha: 0.95),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF00E5FF,
+                              ).withValues(alpha: 0.6),
+                              width: 1.5,
                             ),
-                          ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF00E676,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Color(0xFF00E676),
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          lastResult.fields['Card Type'] ??
+                                              lastResult.mode.title,
+                                          style: const TextStyle(
+                                            color: Color(0xFF00E5FF),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        const Text(
+                                          'Tap for details →',
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      _formatDisplayFields(lastResult),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           IconButton(
                             icon: Icon(
-                              _controller.isFlashOn ? Icons.flash_on : Icons.flash_off,
-                              color: _controller.isFlashOn ? const Color(0xFFFFD600) : Colors.white,
+                              _controller.isFlashOn
+                                  ? Icons.flash_on
+                                  : Icons.flash_off,
+                              color: _controller.isFlashOn
+                                  ? const Color(0xFFFFD600)
+                                  : Colors.white,
                             ),
                             onPressed: () => _controller.toggleFlash(),
                           ),
@@ -731,12 +665,21 @@ class _CustomScreenDesignViewState extends State<CustomScreenDesignView> {
                               foregroundColor: Colors.black,
                               shape: const StadiumBorder(),
                             ),
-                            icon: const Icon(Icons.photo_library_rounded, size: 18),
-                            label: const Text('Pick Image', style: TextStyle(fontWeight: FontWeight.bold)),
+                            icon: const Icon(
+                              Icons.photo_library_rounded,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Pick Image',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             onPressed: () => _controller.pickAndScanImage(),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white),
+                            icon: const Icon(
+                              Icons.cameraswitch_rounded,
+                              color: Colors.white,
+                            ),
                             onPressed: () => _controller.switchCamera(),
                           ),
                         ],
@@ -751,68 +694,30 @@ class _CustomScreenDesignViewState extends State<CustomScreenDesignView> {
       },
     );
   }
-}
 
-class _EvaluationScoreRow extends StatelessWidget {
-  final String category;
-  final String score;
+  String _formatDisplayFields(ScanResult result) {
+    final fields = result.fields;
+    final name =
+        fields['Full Name'] ??
+        fields['Contact Name'] ??
+        fields['Holder Category'];
+    final number =
+        fields['Aadhaar Number'] ??
+        fields['PAN Number'] ??
+        fields['Passport Number'] ??
+        fields['Phone Number'] ??
+        fields['Pincode'];
+    final dob = fields['Date of Birth'] ?? fields['Gender'];
 
-  const _EvaluationScoreRow({required this.category, required this.score});
+    final parts = [
+      if (name != null && name.isNotEmpty) name,
+      if (number != null && number.isNotEmpty) number,
+      if (dob != null && dob.isNotEmpty) dob,
+    ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(category, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          Text(score, style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TargetMetricTile extends StatelessWidget {
-  final String metric;
-  final String target;
-  final String actual;
-
-  const _TargetMetricTile({required this.metric, required this.target, required this.actual});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(metric, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                Text('Target Metric: $target', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00E676).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(actual, style: const TextStyle(color: Color(0xFF00E676), fontWeight: FontWeight.bold, fontSize: 12)),
-          ),
-        ],
-      ),
-    );
+    if (parts.isNotEmpty) {
+      return parts.join('  •  ');
+    }
+    return result.rawValue.replaceAll('\n', ' ');
   }
 }

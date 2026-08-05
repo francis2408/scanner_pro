@@ -58,6 +58,39 @@ class DocumentClassifier {
     final upper = rawText.toUpperCase();
     final keywords = <String>[];
 
+    // Barcode & QR code check (checked first for barcode/QR modes unless explicit identity card payload exists)
+    if (mode == ScanMode.qr ||
+        mode == ScanMode.barcode ||
+        mode == ScanMode.pdf417 ||
+        mode == ScanMode.multiCode) {
+      if (upper.contains('<?XML') ||
+          upper.contains('<PRINTLETTERBARCODEDATA') ||
+          upper.contains('AADHAAR')) {
+        keywords.addAll(['AADHAAR', 'UID']);
+        return DocumentClassificationResult(
+          category: DocumentCategory.aadhaar,
+          confidence: 0.99,
+          detectedKeywords: keywords,
+          description: 'Indian Aadhaar Identity Card (Secure QR)',
+        );
+      }
+      if (upper.contains('INCOME TAX') || upper.contains('PERMANENT ACCOUNT')) {
+        keywords.addAll(['PAN', 'INCOME TAX']);
+        return DocumentClassificationResult(
+          category: DocumentCategory.pan,
+          confidence: 0.98,
+          detectedKeywords: keywords,
+          description: 'Indian Income Tax PAN Card QR',
+        );
+      }
+      return DocumentClassificationResult(
+        category: DocumentCategory.barcode,
+        confidence: 0.99,
+        detectedKeywords: [mode?.name.toUpperCase() ?? 'BARCODE'],
+        description: '1D/2D Barcode Data Payload',
+      );
+    }
+
     // Bank Cheque check
     if (upper.contains('PAY TO THE ORDER OF') || upper.contains('CHEQUE') || upper.contains('MICR') || upper.contains('⑈') || upper.contains('⑆') || (mode == ScanMode.cheque) || RegExp(r'c[0-9]{6}c\s*[0-9]{9}a').hasMatch(rawText)) {
       keywords.addAll(['CHEQUE', 'MICR', 'BANK']);
@@ -81,7 +114,11 @@ class DocumentClassifier {
     }
 
     // Aadhaar Card check
-    if (upper.contains('AADHAAR') || upper.contains('GOVERNMENT OF INDIA') || RegExp(r'\b\d{4}\s\d{4}\s\d{4}\b').hasMatch(rawText) || (mode == ScanMode.aadhaar)) {
+    if (upper.contains('AADHAAR') ||
+        upper.contains('GOVERNMENT OF INDIA') ||
+        upper.contains('UNIQUE IDENTIFICATION') ||
+        RegExp(r'\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b').hasMatch(upper) ||
+        (mode == ScanMode.aadhaar)) {
       keywords.addAll(['AADHAAR', 'UID', 'GOVT OF INDIA']);
       return DocumentClassificationResult(
         category: DocumentCategory.aadhaar,
@@ -92,7 +129,7 @@ class DocumentClassifier {
     }
 
     // PAN Card check
-    if (upper.contains('INCOME TAX') || upper.contains('PERMANENT ACCOUNT') || RegExp(r'[A-Z]{5}[0-9]{4}[A-Z]').hasMatch(upper) || (mode == ScanMode.pan)) {
+    if (upper.contains('INCOME TAX') || upper.contains('PERMANENT ACCOUNT') || (mode == ScanMode.pan)) {
       keywords.addAll(['PAN', 'INCOME TAX', 'GOVT OF INDIA']);
       return DocumentClassificationResult(
         category: DocumentCategory.pan,

@@ -45,8 +45,13 @@ class _ResultBottomSheetState extends State<ResultBottomSheet> {
   @override
   void initState() {
     super.initState();
+    final stopwatch = Stopwatch()..start();
     _apiLookupFuture = ExternalLookupService.fetchExternalDetails(widget.result)
         .then((details) {
+          stopwatch.stop();
+          debugPrint(
+            '📊 [ResultBottomSheet] Result fetch time & metadata resolution completed in ${stopwatch.elapsedMilliseconds} ms (${details.length} fields resolved)',
+          );
           if (mounted && details.isNotEmpty) {
             setState(() {
               widget.result.fields.addAll(details);

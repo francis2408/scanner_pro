@@ -160,14 +160,38 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  google_mlkit_barcode_scanning:
+    dependency: transitive
+    description:
+      name: google_mlkit_barcode_scanning
+      sha256: "5852d1daa007a05b33f99e3e3fa34227c49d9c41bc92a85d820666a57fd5c35f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.13.0"
   google_mlkit_commons:
     dependency: transitive
     description:
       name: google_mlkit_commons
-      sha256: c7fc384bdb66c3b83e24e3a41818e61d7a378d900f65f5e775344fbca95a0917
+      sha256: "7e9a6d6e66b44aa8cfe944bda9bc3346c52486dd890ca49e5bc98845cda40d7f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
+  google_mlkit_face_detection:
+    dependency: transitive
+    description:
+      name: google_mlkit_face_detection
+      sha256: "65988405c884fd84a4ccc8bded7b5e3e4c33362f6f4eaaa94818bdaaba7bab7d"
       url: "https://pub.dev"
     source: hosted
     version: "0.12.0"
+  google_mlkit_text_recognition:
+    dependency: transitive
+    description:
+      name: google_mlkit_text_recognition
+      sha256: e7609cec8de3022680a36ead8a8bafa9fd2360ea018a728feaad12dcb0e3c177
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.0"
   http:
     dependency: transitive
     description:
@@ -342,7 +366,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "2.5.0"
+    version: "2.5.1"
   sky_engine:
     dependency: transitive
     description: flutter

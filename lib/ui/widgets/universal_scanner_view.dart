@@ -12,11 +12,12 @@ import 'scanner_camera_preview.dart';
 import 'scanner_overlay_painter.dart';
 
 /// Builder signature for creating custom screen designs with [UniversalScannerView.builder].
-typedef UniversalScannerBuilder = Widget Function(
-  BuildContext context,
-  ScannerController controller,
-  Widget cameraPreview,
-);
+typedef UniversalScannerBuilder =
+    Widget Function(
+      BuildContext context,
+      ScannerController controller,
+      Widget cameraPreview,
+    );
 
 /// Main camera viewfinder widget supporting mode switching, gallery picks, reticle overlays,
 /// and complete screen layout customization.
@@ -118,7 +119,8 @@ class UniversalScannerView extends StatefulWidget {
   final bool autoShowResultBottomSheet;
 
   /// Optional builder signature for creating custom overlay widgets.
-  final Widget Function(BuildContext context, ScannerController controller)? overlayBuilder;
+  final Widget Function(BuildContext context, ScannerController controller)?
+  overlayBuilder;
 
   /// Optional callback invoked when a valid [ScanResult] is detected.
   final Function(ScanResult result)? onResultDetected;
@@ -357,7 +359,9 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                             painter: ScannerOverlayPainter(
                               scanMode: currentMode,
                               animationValue: _laserAnimController.value,
-                              accentColor: _getCategoryColor(currentMode.category),
+                              accentColor: _getCategoryColor(
+                                currentMode.category,
+                              ),
                               theme: uiTheme,
                               focusPoint: _controller.lastTapFocusPoint,
                               isDetected: lastRes != null && lastRes.isValid,
@@ -379,92 +383,111 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           if (_controller.isInitialized)
-                            Row(
-                              children: [
-                                _buildIconButton(
-                                  icon: _controller.isFlashOn
-                                      ? Icons.flash_on_rounded
-                                      : Icons.flash_off_rounded,
-                                  onPressed: () => _controller.toggleFlash(),
-                                  active: _controller.isFlashOn,
-                                  category: currentMode.category,
-                                ),
-                                if (_controller.isLowLight && !_controller.isFlashOn) ...[
-                                  const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: () => _controller.toggleFlash(),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.shade800,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.lightbulb_rounded,
-                                            size: 14,
-                                            color: Colors.white,
+                            Flexible(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildIconButton(
+                                      icon: _controller.isFlashOn
+                                          ? Icons.flash_on_rounded
+                                          : Icons.flash_off_rounded,
+                                      onPressed: () =>
+                                          _controller.toggleFlash(),
+                                      active: _controller.isFlashOn,
+                                      category: currentMode.category,
+                                    ),
+                                    if (_controller.isLowLight &&
+                                        !_controller.isFlashOn) ...[
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () => _controller.toggleFlash(),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
                                           ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Low Light',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.shade800,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                if (_controller.isBlurry || _controller.isMotionDetected) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.deepOrange.shade800,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.vibration_rounded,
-                                          size: 14,
-                                          color: Colors.white,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Hold Still',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.lightbulb_rounded,
+                                                size: 14,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Low Light',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ],
+                                      ),
+                                    ],
+                                    if (_controller.isBlurry ||
+                                        _controller.isMotionDetected) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.deepOrange.shade800,
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.vibration_rounded,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Hold Still',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             )
                           else
                             const SizedBox(width: 44),
                           if (uiTheme.showModeBadge)
-                            _buildModeBadge(currentMode)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: _buildModeBadge(currentMode),
+                            )
                           else
                             const SizedBox.shrink(),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               if (_controller.options.scanStrategy ==
                                   ScanStrategy.batch) ...[
@@ -474,7 +497,9 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getCategoryColor(currentMode.category),
+                                    color: _getCategoryColor(
+                                      currentMode.category,
+                                    ),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
@@ -532,7 +557,9 @@ class _UniversalScannerViewState extends State<UniversalScannerView>
                                 child: Text(
                                   '${zoom.toInt()}x',
                                   style: TextStyle(
-                                    color: isSelected ? Colors.black : Colors.white,
+                                    color: isSelected
+                                        ? Colors.black
+                                        : Colors.white,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
