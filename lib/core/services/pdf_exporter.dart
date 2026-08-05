@@ -53,6 +53,7 @@ class PdfExportUtil {
         '<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count $totalPages >>');
     buffer.writeln('endobj');
 
+    final fontObjId = 3 + totalPages * 2;
     int nextObjId = 3;
 
     for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
@@ -98,7 +99,7 @@ class PdfExportUtil {
         contentStream.writeln('0 -20 Td');
         contentStream
             .writeln('(Total Items Scanned: ${results.length}) Tj');
-        contentStream.writeln('0 -25 Td');
+        contentStream.writeln('0 -30 Td');
       } else {
         contentStream.writeln(
             '(${_escapePdfText(title)} - Page ${pageIndex + 1}/$totalPages) Tj');
@@ -108,13 +109,9 @@ class PdfExportUtil {
       // Render result items on this page
       for (int i = 0; i < pageResults.length; i++) {
         final res = pageResults[i];
-        final globalIndex = startItem + i;
-        final categoryLabel = res.documentCategory != null
-            ? ' [${res.documentCategory!}]'
-            : '';
+        final itemNum = startItem + i + 1;
         final lineText =
-            '${globalIndex + 1}.$categoryLabel [${res.mode.name.toUpperCase()}] '
-            '${_escapePdfText(res.rawValue.replaceAll('\n', ' '))}';
+            '[$itemNum] ${res.mode.name.toUpperCase()}: ${_escapePdfText(res.rawValue)}';
         final truncated = lineText.length > 75
             ? '${lineText.substring(0, 72)}...'
             : lineText;
@@ -158,7 +155,7 @@ class PdfExportUtil {
       buffer.writeln('$pageObjId 0 obj');
       buffer.writeln(
           '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $pageWidth $pageHeight] '
-          '/Contents $contentObjId 0 R /Resources << /Font << /F1 $nextObjId 0 R >> >> >>');
+          '/Contents $contentObjId 0 R /Resources << /Font << /F1 $fontObjId 0 R >> >> >>');
       buffer.writeln('endobj');
 
       // Content stream object
@@ -171,11 +168,12 @@ class PdfExportUtil {
     }
 
     // Font object (shared)
-    final fontObjId = nextObjId++;
     buffer.writeln('$fontObjId 0 obj');
     buffer.writeln(
         '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
     buffer.writeln('endobj');
+
+    nextObjId = fontObjId + 1;
 
     // Encryption object trailer if password or encryption requested
     String encryptRef = '';
