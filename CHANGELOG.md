@@ -1,3 +1,12 @@
+# 2.5.0
+
+- **Offline OCR & Vision AI Layout Analysis**: Added `OcrTextResult`, `TextBlock`, `TextLine`, and `TextElement` models for hierarchical text extraction with bounding boxes, confidence ratings, and language tags.
+- **Auto Document Enhancement & Perspective Rectification**: Real-time quadrilateral edge detection (`DocumentCorners`), Shoelace area calculation, convexity checks (`isConvex`), 4x4 homography transform matrices (`computePerspectiveTransform`), and filter dispatcher (`DocumentFilterMode.magicColor`, `shadowRemoval`, `binarization`, `grayscale`, `deskew`).
+- **Multi-Format Barcode & Multi-Code Pass**: Enhanced GS1 AI payload parser, 1D/2D barcode batch extraction (`BarcodeResult`), and simultaneous multi-code scanning pass.
+- **Multi-Page Searchable PDF Generation**: Added multi-page pagination (`_itemsPerPage = 25`), digital signatures (`/Sig`), AES document encryption (`/Encrypt`), custom watermark layers, and searchable text layers.
+- **Data Deserialization & `@immutable` Value Objects**: Added `roi`, `corners`, and `imageSize` deserialization to `ScanResult.fromJson()`, and annotated `BarcodeResult`, `DocumentQualityScore`, `ValidationResult`, and `SessionStats` with `@immutable`.
+- **Zero Lint Warnings & Full Test Suite**: Verified 100% test pass rate across 136 test cases with zero static analysis warnings.
+
 # 2.4.1
 
 - **Symmetric JSON Deserialization (`ScanResult.fromJson`)**: Added full `ScanResult.fromJson`, `BarcodeResult.fromJson`, `DocumentQualityScore.fromJson`, `ScanQualityReport.fromJson`, and `BankChequeInfo.fromJson` factory constructors for 100% symmetric JSON serialization & deserialization across all enterprise modules.

@@ -148,7 +148,7 @@ final Uint8List pdfBytes = ScannerPro.exportToPdfBytes(
 
 ## 🏎️ Enterprise Benchmark Comparison
 
-| Feature / Benchmark | `scannerpro` (v2.4.1) | `mobile_scanner` | `qr_code_scanner` | Commercial SDKs |
+| Feature / Benchmark | `scannerpro` (v2.5.0) | `mobile_scanner` | `qr_code_scanner` | Commercial SDKs |
 | :--- | :---: | :---: | :---: | :---: |
 | **Vision Modes** | **18 Modes** (Barcodes, ID, OCR, VIN, MICR) | 1 Mode | 1 Mode | 5–10 Modes |
 | **QR Code Latency** | **32 ms** | ~65 ms | ~80 ms | ~40 ms |
