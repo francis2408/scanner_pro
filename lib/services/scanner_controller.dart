@@ -7,16 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/models/camera_facing.dart';
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_mode.dart';
 import '../core/models/scanner_options.dart';
 import '../core/models/scanner_stats.dart';
 import '../core/services/csv_exporter.dart';
+import '../core/services/document_scan_session.dart';
 import '../core/services/feedback_service.dart';
 import '../core/services/json_exporter.dart';
+import '../core/services/multi_scan_session.dart';
 import '../core/services/scan_history_controller.dart';
 import '../core/services/scanner_analytics.dart';
-import '../core/services/multi_scan_session.dart';
 import 'isolate_frame_processor.dart';
 import 'universal_scan_engine.dart';
 
@@ -61,12 +63,12 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   List<cam.CameraDescription> _availableCameras = [];
   bool _isInitialized = false;
   bool _isInitializing = false;
+  bool _isDisposed = false;
   bool _isFlashOn = false;
   double _torchLevel = 1.0;
   bool _isFocusLocked = false;
   int _selectedCameraIndex = 0;
   bool _isPaused = false;
-
 
   final StreamController<ScanResult> _scanEventController =
       StreamController<ScanResult>.broadcast();
@@ -142,6 +144,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
+  /// Whether controller has been disposed.
+  bool get isDisposed => _isDisposed;
+
   /// Active resolution preset setting.
   cam.ResolutionPreset get resolutionPreset => _resolutionPreset;
 
@@ -162,6 +167,25 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Currently selected camera index in [availableCameras].
   int get selectedCameraIndex => _selectedCameraIndex;
+
+  /// Hardware camera lens facing direction (`mobile_scanner` API compatibility).
+  CameraFacing get facing {
+    if (_availableCameras.isEmpty || _selectedCameraIndex >= _availableCameras.length) {
+      return CameraFacing.back;
+    }
+    final lens = _availableCameras[_selectedCameraIndex].lensDirection;
+    if (lens == cam.CameraLensDirection.front) return CameraFacing.front;
+    if (lens == cam.CameraLensDirection.back) return CameraFacing.back;
+    return CameraFacing.unknown;
+  }
+
+  /// Flashlight torch operation mode (`mobile_scanner` API compatibility).
+  TorchState get torchState {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return TorchState.off;
+    }
+    return _isFlashOn ? TorchState.on : TorchState.off;
+  }
 
   /// List of available hardware cameras on device.
   List<cam.CameraDescription> get availableCameras =>
@@ -229,9 +253,17 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   /// In-memory log of recent scan history.
   List<ScanResult> get scanHistory => List.unmodifiable(_scanHistory);
 
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    if (_isDisposed ||
+        _cameraController == null ||
+        !_cameraController!.value.isInitialized) {
       return;
     }
     if (state == AppLifecycleState.inactive ||
@@ -240,6 +272,21 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       resumeScanning();
     }
+  }
+
+  /// Starts or resumes scanner operation (`mobile_scanner` API compatibility).
+  Future<void> start() async {
+    if (_isDisposed) return;
+    if (!_isInitialized) {
+      await initialize();
+    } else {
+      resumeScanning();
+    }
+  }
+
+  /// Stops or pauses scanner operation (`mobile_scanner` API compatibility).
+  Future<void> stop() async {
+    pauseScanning();
   }
 
   /// Pre-warms vision engine and hardware resources prior to UI layout assembly.
@@ -258,15 +305,15 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Initializes hardware cameras and starts live stream processing with auto-recovery.
   Future<void> initialize() async {
-    if (_isInitialized || _isInitializing) return;
+    if (_isInitialized || _isInitializing || _isDisposed) return;
     _isInitializing = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _scanEngine.initialize();
       _availableCameras = await availableCamerasFunc();
-      if (_availableCameras.isNotEmpty) {
+      if (_availableCameras.isNotEmpty && !_isDisposed) {
         final camera = _availableCameras[_selectedCameraIndex];
         _cameraController = cam.CameraController(
           camera,
@@ -278,6 +325,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         );
 
         await _cameraController!.initialize();
+        if (_isDisposed) return;
 
         try {
           _minZoomLevel = await _cameraController!.getMinZoomLevel();
@@ -298,7 +346,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       _isInitialized = false;
     } finally {
       _isInitializing = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -313,7 +361,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _startLiveImageStream() {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    if (_isDisposed ||
+        _cameraController == null ||
+        !_cameraController!.value.isInitialized) {
       return;
     }
 
@@ -323,16 +373,19 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
     try {
       _cameraController!.startImageStream((cam.CameraImage image) async {
+        if (_isDisposed) return;
+
         if (!_frameStreamController.isClosed) {
           _frameStreamController.add(image);
         }
         onFrame?.call(image);
 
-        if (_isPaused || _isProcessingLiveFrame || _isAnalyzingEvent) return;
+        if (_isPaused || _isProcessingLiveFrame || _isAnalyzingEvent || !_isInitialized) {
+          return;
+        }
 
         final now = DateTime.now();
 
-        // Adaptive frame rate throttling based on FPS state & latency feedback
         final targetThrottle = options.enableAdaptiveFps
             ? _fpsState.frameIntervalMs
             : options.frameThrottleMs;
@@ -349,7 +402,6 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         final frameStopwatch = Stopwatch()..start();
 
         try {
-          // Process frame in background isolate if enabled
           if (options.enableIsolateProcessing) {
             final rawBytes = _convertCameraImageToBytes(image);
             final taskData = IsolateFrameTaskData(
@@ -368,6 +420,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
             final isolateResult =
                 await IsolateFrameProcessor.processFrame(taskData);
+
+            if (_isDisposed) return;
+
             _lastFrameHash = isolateResult.frameHash;
             _isBlurry = isolateResult.isBlurry;
             _isMotionDetected = isolateResult.isMotionDetected;
@@ -378,13 +433,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
               isolateResult.isLowLight,
             );
 
-            // Skip Vision ML analysis if scene frame is static
             if (options.enablePauseOnStaticFrame && isolateResult.isStaticFrame) {
               _droppedFrameCount++;
               return;
             }
 
-            // Auto-refocus if isolate detects frame blur
             if (isolateResult.isBlurry && options.continuousAutofocus) {
               _triggerAutoRefocus();
             }
@@ -398,7 +451,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
                   : image.width,
             );
 
-            if (inputImage != null) {
+            if (inputImage != null && !_isDisposed) {
               final result = await _scanEngine.processInputImage(
                 inputImage,
                 _selectedMode,
@@ -433,7 +486,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
             }
           } else {
             final inputImage = _inputImageFromCameraImage(image);
-            if (inputImage != null) {
+            if (inputImage != null && !_isDisposed) {
               final result = await _scanEngine.processInputImage(
                 inputImage,
                 _selectedMode,
@@ -462,7 +515,6 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
           final elapsedMs = frameStopwatch.elapsedMilliseconds.toDouble();
           _updatePerformanceStats(elapsedMs);
 
-          // Adaptive frame skipping adjustment
           if (options.enableAdaptiveFrameSkipping) {
             if (elapsedMs > 60) {
               dynamicThrottleMs = (dynamicThrottleMs * 1.2).toInt().clamp(20, 250);
@@ -480,6 +532,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _updatePerformanceStats(double elapsedMs) {
+    if (_isDisposed) return;
     _latencyWindow.add(elapsedMs);
     if (_latencyWindow.length > 20) {
       _latencyWindow.removeAt(0);
@@ -505,6 +558,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _triggerAutoRefocus() {
+    if (_isDisposed) return;
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         _cameraController!.setFocusMode(cam.FocusMode.auto);
@@ -513,6 +567,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _checkAutoZoomAndEmit(ScanResult result, int frameWidth, int frameHeight) {
+    if (_isDisposed) return;
     if (options.enableAutoZoom &&
         result.boundingBox != null &&
         _currentZoomLevel <= 1.2) {
@@ -529,7 +584,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
 
     if (options.autoResetZoomAfterScan && _currentZoomLevel > 1.0) {
       Future.delayed(const Duration(milliseconds: 800), () {
-        setZoomLevel(1.0);
+        if (!_isDisposed) setZoomLevel(1.0);
       });
     }
   }
@@ -604,16 +659,19 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _updateLuminosityState(double luminosity, bool lowLight) {
+    if (_isDisposed) return;
     _currentLuminosity = luminosity;
     if (_isLowLight != lowLight) {
       _isLowLight = lowLight;
-      _lowLightController.add(lowLight);
+      if (!_lowLightController.isClosed) {
+        _lowLightController.add(lowLight);
+      }
       onLowLightDetected?.call(lowLight);
 
       if (options.autoTorchInLowLight && lowLight && !_isFlashOn) {
         setFlashMode(cam.FlashMode.torch);
       }
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -711,7 +769,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Trigger tap-to-focus on camera preview coordinates.
   Future<void> tapToFocus(Offset relativePoint) async {
     _lastTapFocusPoint = relativePoint;
-    notifyListeners();
+    _safeNotifyListeners();
 
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
@@ -727,7 +785,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setZoomLevel(double zoom) async {
     final clampedZoom = zoom.clamp(_minZoomLevel, _maxZoomLevel);
     _currentZoomLevel = clampedZoom;
-    notifyListeners();
+    _safeNotifyListeners();
 
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
@@ -736,6 +794,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         debugPrint('Set zoom failed: $e');
       }
     }
+  }
+
+  /// Sets camera digital zoom scale (`mobile_scanner` API compatibility).
+  Future<void> setZoomScale(double zoom) async {
+    await setZoomLevel(zoom);
   }
 
   /// Auto-zooms by multiplier when small barcodes are far away.
@@ -749,26 +812,72 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   void setMode(ScanMode mode) {
     if (_selectedMode != mode) {
       _selectedMode = mode;
-      notifyListeners();
+      _safeNotifyListeners();
+    }
+  }
+
+  /// Switches camera lens facing direction (`mobile_scanner` API compatibility).
+  Future<void> setCameraFacing(CameraFacing targetFacing) async {
+    if (_availableCameras.isEmpty) return;
+    final targetIndex = _availableCameras.indexWhere((c) {
+      if (targetFacing == CameraFacing.front) {
+        return c.lensDirection == cam.CameraLensDirection.front;
+      } else {
+        return c.lensDirection == cam.CameraLensDirection.back;
+      }
+    });
+
+    if (targetIndex != -1 && targetIndex != _selectedCameraIndex) {
+      _selectedCameraIndex = targetIndex;
+      if (_cameraController != null &&
+          _cameraController!.value.isStreamingImages) {
+        try {
+          await _cameraController!.stopImageStream();
+        } catch (_) {}
+      }
+      await _cameraController?.dispose();
+      _cameraController = null;
+      _isInitialized = false;
+      _safeNotifyListeners();
+
+      await initialize();
+    }
+  }
+
+  /// Switches flashlight torch operation state (`mobile_scanner` API compatibility).
+  Future<void> setTorchState(TorchState state) async {
+    switch (state) {
+      case TorchState.on:
+        await setFlashMode(cam.FlashMode.torch);
+        break;
+      case TorchState.off:
+        await setFlashMode(cam.FlashMode.off);
+        break;
+      case TorchState.auto:
+        await setFlashMode(cam.FlashMode.auto);
+        break;
+      case TorchState.unavailable:
+        await setFlashMode(cam.FlashMode.off);
+        break;
     }
   }
 
   /// Pauses processing live stream image frames.
   void pauseScanning() {
     _isPaused = true;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Resumes processing live stream image frames.
   void resumeScanning() {
     _isPaused = false;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Locks autofocus to current focal plane to prevent continuous hunting.
   Future<void> lockFocus() async {
     _isFocusLocked = true;
-    notifyListeners();
+    _safeNotifyListeners();
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         await _cameraController!.setFocusMode(cam.FocusMode.locked);
@@ -781,7 +890,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Unlocks focus to resume continuous autofocus.
   Future<void> unlockFocus() async {
     _isFocusLocked = false;
-    notifyListeners();
+    _safeNotifyListeners();
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         await _cameraController!.setFocusMode(cam.FocusMode.auto);
@@ -795,7 +904,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setTorchLevel(double level) async {
     _torchLevel = level.clamp(0.0, 1.0);
     _isFlashOn = _torchLevel > 0.0;
-    notifyListeners();
+    _safeNotifyListeners();
 
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
@@ -814,7 +923,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setResolution(cam.ResolutionPreset preset) async {
     if (_resolutionPreset == preset) return;
     _resolutionPreset = preset;
-    notifyListeners();
+    _safeNotifyListeners();
 
     if (_cameraController != null) {
       if (_cameraController!.value.isStreamingImages) {
@@ -825,7 +934,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       await _cameraController?.dispose();
       _cameraController = null;
       _isInitialized = false;
-      notifyListeners();
+      _safeNotifyListeners();
       await initialize();
     }
   }
@@ -853,6 +962,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     return await processImageFile(imageFile.path, mode: mode);
   }
 
+  /// Analyzes an image file from local path (`mobile_scanner` API compatibility).
+  Future<ScanResult> analyzeImage(String imagePath, {ScanMode? mode}) async {
+    return await processImageFile(imagePath, mode: mode);
+  }
+
   /// Alias for pickAndScanImage for gallery scanning.
   Future<ScanResult?> scanGallery({ScanMode? mode}) async {
     return await pickAndScanImage(mode: mode);
@@ -875,7 +989,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       await _cameraController!.setFlashMode(
         _isFlashOn ? cam.FlashMode.torch : cam.FlashMode.off,
       );
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -885,7 +999,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       await _cameraController!.setFlashMode(mode);
       _isFlashOn =
           (mode == cam.FlashMode.torch || mode == cam.FlashMode.always);
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -903,7 +1017,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       await _cameraController?.dispose();
       _cameraController = null;
       _isInitialized = false;
-      notifyListeners();
+      _safeNotifyListeners();
 
       await initialize();
     }
@@ -912,21 +1026,21 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Clears accumulated batch inventory scan list.
   void clearBatch() {
     _batchResults.clear();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Removes an item from batch scan list by index.
   void removeBatchItem(int index) {
     if (index >= 0 && index < _batchResults.length) {
       _batchResults.removeAt(index);
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   /// Clears in-memory scan history log.
   void clearHistory() {
     _scanHistory.clear();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Opens gallery image picker and scans selected image file.
@@ -941,7 +1055,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       }
     } catch (e) {
       _errorMessage = 'Gallery pick failed: ${e.toString()}';
-      notifyListeners();
+      _safeNotifyListeners();
     }
     return null;
   }
@@ -1011,7 +1125,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         );
       } catch (_) {}
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   MultiScanSession? _activeSession;
@@ -1027,7 +1141,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       maxItems: maxItems ?? options.maxBatchCount,
     );
     _activeSession!.start();
-    notifyListeners();
+    _safeNotifyListeners();
     return _activeSession!;
   }
 
@@ -1036,8 +1150,23 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     if (_activeSession == null) return null;
     _activeSession!.complete();
     final stats = _activeSession!.getStats();
-    notifyListeners();
+    _safeNotifyListeners();
     return stats;
+  }
+
+  /// Currently active multi-page document scan session (`scanbot_sdk` style).
+  DocumentScanSession? _documentSession;
+  DocumentScanSession? get documentSession => _documentSession;
+
+  /// Starts a new multi-page document scanning session (`scanbot_sdk` style).
+  DocumentScanSession startDocumentSession({String? name, int? maxPages}) {
+    _documentSession = DocumentScanSession(
+      id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      maxPages: maxPages,
+    );
+    _safeNotifyListeners();
+    return _documentSession!;
   }
 
   /// Sets manual focus point on camera viewport coordinates (0.0 to 1.0).
@@ -1048,7 +1177,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         await _cameraController!.setFocusPoint(point);
       } catch (_) {}
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Sets camera exposure compensation offset.
@@ -1058,7 +1187,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         await _cameraController!.setExposureOffset(offset);
       } catch (_) {}
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Sets flashlight torch brightness level.
@@ -1071,7 +1200,7 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
         );
       } catch (_) {}
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Processes an image file from a local path.
@@ -1086,10 +1215,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _emitScanDataEvent(ScanResult result) {
-    if (_isAnalyzingEvent) return;
+    if (_isAnalyzingEvent || _isDisposed) return;
     final now = DateTime.now();
 
-    // Check allowed format filtering
     if (options.allowedFormats != null &&
         options.allowedFormats!.isNotEmpty &&
         result.format != null &&
@@ -1097,7 +1225,6 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
-    // Duplicate detection caching window filter
     if (options.enableDuplicateFilter &&
         _lastScannedPayload == result.rawValue &&
         _lastScannedTime != null &&
@@ -1110,15 +1237,12 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     _lastScannedTime = now;
     _lastResult = result;
 
-    // Record session telemetry analytics
     analytics.recordScan(result);
 
-    // Forward to active multi-scan session if active
     if (_activeSession != null && _activeSession!.isActive) {
       _activeSession!.addResult(result);
     }
 
-    // Audio and haptic feedback
     if (result.isValid) {
       FeedbackService.playSuccessFeedback(
         sound: options.enableSound,
@@ -1147,25 +1271,25 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
       _scanEventController.add(result);
     }
     onResultDetected?.call(result);
-    notifyListeners();
+    _safeNotifyListeners();
 
     _isAnalyzingEvent = false;
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     if (_cameraController != null &&
         _cameraController!.value.isStreamingImages) {
-      _cameraController?.stopImageStream();
+      try {
+        _cameraController?.stopImageStream();
+      } catch (_) {}
     }
-    _scanEventController.close();
-    _lowLightController.close();
-    _statsController.close();
-    _frameStreamController.close();
-    // Unawaited: CameraController.dispose() returns a Future, but
-    // ChangeNotifier.dispose() is synchronous by contract. The camera
-    // platform channel will finalize resources asynchronously.
+    if (!_scanEventController.isClosed) _scanEventController.close();
+    if (!_lowLightController.isClosed) _lowLightController.close();
+    if (!_statsController.isClosed) _statsController.close();
+    if (!_frameStreamController.isClosed) _frameStreamController.close();
     _cameraController?.dispose();
     _scanEngine.dispose();
     super.dispose();

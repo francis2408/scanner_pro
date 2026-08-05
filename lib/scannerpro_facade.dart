@@ -111,15 +111,17 @@ class ScannerPro {
     dynamic imageInput, {
     ScanMode mode = ScanMode.qr,
   }) async {
-    String? path;
-    if (imageInput is File) {
-      path = imageInput.path;
-    } else if (imageInput is String) {
-      path = imageInput;
+    if (imageInput is Uint8List) {
+      return scanBytes(imageInput, mode: mode);
     }
-
-    if (path != null) {
-      return _engine.processImageFile(path, mode);
+    if (imageInput is File) {
+      return _engine.processImageFile(imageInput.path, mode);
+    }
+    if (imageInput is String) {
+      if (File(imageInput).existsSync()) {
+        return _engine.processImageFile(imageInput, mode);
+      }
+      return scanBytes(Uint8List.fromList(imageInput.codeUnits), mode: mode);
     }
     return ScanResult(
       mode: mode,
