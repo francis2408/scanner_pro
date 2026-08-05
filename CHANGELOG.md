@@ -1,4 +1,4 @@
-# 2.5.0
+# 2.5.1
 
 - **Scanbot SDK Compatibility & Multi-Page Document Session**: Added `DocumentPage`, `DocumentScanSession` for multi-page document capture, polygon quad boundaries, page filtering, reordering, and PDF export (`ScanbotSdk` static facade & `ScanbotDocumentScannerView`).
 - **MobileScanner Drop-In Compatibility**: Added `MobileScannerController` and `MobileScanner` widget wrappers (`facing`, `torchState`, `start()`, `stop()`, `toggleTorch()`, `analyzeImage()`, `barcodes` stream).

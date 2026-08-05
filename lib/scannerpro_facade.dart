@@ -19,7 +19,7 @@ import 'core/validators/result_validator.dart';
 import 'services/universal_scan_engine.dart';
 
 /// ScannerPro SDK version constant.
-const String scannerProVersion = '2.5.0';
+const String scannerProVersion = '2.5.1';
 
 /// Top-level facade class providing high-level, 1-line static methods
 /// for document parsing, OCR text extraction, image scanning, PDF processing,
