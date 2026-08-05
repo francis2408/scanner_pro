@@ -324,9 +324,9 @@ void main() {
     // 7. ScannerPro Facade v2.4.0 Static APIs
     // -------------------------------------------------------------------------
     group('ScannerPro Facade v2.4.0 Static APIs', () {
-      test('version constant returns 2.5.0', () {
-        expect(ScannerPro.version, equals('2.5.0'));
-        expect(scannerProVersion, equals('2.5.0'));
+      test('version constant returns 2.5.2', () {
+        expect(ScannerPro.version, equals('2.5.2'));
+        expect(scannerProVersion, equals('2.5.2'));
       });
 
       test('compressImage static helper returns CompressionResult', () {

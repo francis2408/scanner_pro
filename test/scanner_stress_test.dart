@@ -1,5 +1,4 @@
-import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scannerpro/scannerpro.dart';
 
@@ -54,7 +53,9 @@ void main() {
       for (final r in results) {
         if (r is ScanResult) {
           if (!r.isValid) {
-            print('Failing mode: ${r.mode}, rawValue: "${r.rawValue}", fields: ${r.fields}, metadata: ${r.metadata}');
+            debugPrint(
+              'Failing mode: ${r.mode}, rawValue: "${r.rawValue}", fields: ${r.fields}, metadata: ${r.metadata}',
+            );
           }
           expect(r.isValid, true);
         }
