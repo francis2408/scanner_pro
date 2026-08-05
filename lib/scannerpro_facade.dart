@@ -10,6 +10,7 @@ import 'core/parsers/mrz_passport_parser.dart';
 import 'core/parsers/pan_card_parser.dart';
 import 'core/parsers/vin_parser.dart';
 
+import 'core/services/document_scanner_service.dart';
 import 'core/services/encrypted_storage.dart';
 import 'core/services/image_compressor.dart';
 import 'core/services/pdf_exporter.dart';
@@ -30,6 +31,50 @@ class ScannerPro {
 
   /// Current SDK version string.
   static String get version => scannerProVersion;
+
+  /// Priority 1: High-level Optical Character Recognition (OCR) API on file/bytes/asset input.
+  static Future<ScanResult> scanOcr(dynamic input) async {
+    if (input is Uint8List) {
+      return scanBytes(input, mode: ScanMode.ocr);
+    }
+    return scanImage(input, mode: ScanMode.ocr);
+  }
+
+  /// Priority 2: High-level Document Edge Detection & Perspective Scanner API.
+  static Future<ScanResult> scanDocument(dynamic input) async {
+    if (input is Uint8List) {
+      return scanBytes(input, mode: ScanMode.document);
+    }
+    return scanImage(input, mode: ScanMode.document);
+  }
+
+  /// Priority 3: High-level Multi-format Barcode & QR Code Scanner API.
+  static Future<ScanResult> scanBarcode(
+    dynamic input, {
+    ScanMode mode = ScanMode.barcode,
+  }) async {
+    if (input is Uint8List) {
+      return scanBytes(input, mode: mode);
+    }
+    return scanImage(input, mode: mode);
+  }
+
+  /// Priority 4: High-level Auto Document Enhancement filter API.
+  static Uint8List enhanceDocument(
+    Uint8List bytes,
+    DocumentFilterMode filterMode, {
+    int? width,
+    int? height,
+    int binarizationThreshold = 128,
+  }) {
+    return DocumentScannerService.applyFilter(
+      bytes,
+      filterMode,
+      binarizationThreshold: binarizationThreshold,
+      width: width,
+      height: height,
+    );
+  }
 
   /// Scans and parses an Indian Aadhaar card from raw text or Secure QR XML payload.
   static ScanResult scanAadhaar(String rawTextOrXml) {

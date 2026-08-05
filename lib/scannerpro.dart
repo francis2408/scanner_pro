@@ -1,3 +1,4 @@
+export 'core/models/ocr_text_result.dart';
 export 'core/models/scan_result.dart';
 export 'core/models/scanner_mode.dart';
 export 'core/models/scanner_options.dart';

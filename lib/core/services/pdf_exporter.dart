@@ -17,7 +17,7 @@ class PdfExportUtil {
   static Uint8List exportResultsToPdf({
     required List<ScanResult> results,
     String title = 'ScannerPro Scanned Document Export',
-    String author = 'Universal Scanner Pro SDK v2.4.0',
+    String author = 'Universal Scanner Pro SDK v2.4.1',
     bool isLandscape = false,
     bool includeMetadata = true,
     bool enableCompression = true,

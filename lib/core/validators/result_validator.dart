@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show immutable;
 import '../models/scan_result.dart';
 import '../parsers/aadhaar_parser.dart';
 import '../parsers/driving_license_parser.dart';
@@ -7,6 +8,7 @@ import '../parsers/pan_card_parser.dart';
 import '../parsers/vin_parser.dart';
 
 /// Result of a validation check on a scan payload or result object.
+@immutable
 class ValidationResult {
   /// Whether the scanned item passed validation checks.
   final bool isValid;

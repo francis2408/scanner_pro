@@ -1163,6 +1163,9 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
     _lowLightController.close();
     _statsController.close();
     _frameStreamController.close();
+    // Unawaited: CameraController.dispose() returns a Future, but
+    // ChangeNotifier.dispose() is synchronous by contract. The camera
+    // platform channel will finalize resources asynchronously.
     _cameraController?.dispose();
     _scanEngine.dispose();
     super.dispose();

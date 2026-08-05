@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'ocr_text_result.dart';
 import 'scanner_mode.dart';
 
 import '../parsers/bank_cheque_parser.dart';
 
 /// Detailed result structure for individual detected barcodes in multi-barcode scanning mode.
+@immutable
 class BarcodeResult {
   final String format;
   final String rawValue;
@@ -76,6 +78,7 @@ class BarcodeResult {
 }
 
 /// Document image quality metrics calculated during isolate preprocessing.
+@immutable
 class DocumentQualityScore {
   final double blurScore;
   final double brightnessScore;
@@ -203,6 +206,9 @@ class ScanResult {
   /// Whether a watermark has been applied to this scan's output.
   final bool watermarkApplied;
 
+  /// Full structured OCR text result (blocks, lines, elements).
+  final OcrTextResult? ocrTextResult;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
@@ -234,6 +240,7 @@ class ScanResult {
     this.exportFormat,
     this.encryptionStatus,
     this.watermarkApplied = false,
+    this.ocrTextResult,
   })  : fields = fields ?? const {},
         timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
@@ -304,6 +311,7 @@ class ScanResult {
     String? exportFormat,
     String? encryptionStatus,
     bool? watermarkApplied,
+    OcrTextResult? ocrTextResult,
   }) {
     return ScanResult(
       mode: mode ?? this.mode,
@@ -335,6 +343,7 @@ class ScanResult {
       exportFormat: exportFormat ?? this.exportFormat,
       encryptionStatus: encryptionStatus ?? this.encryptionStatus,
       watermarkApplied: watermarkApplied ?? this.watermarkApplied,
+      ocrTextResult: ocrTextResult ?? this.ocrTextResult,
     );
   }
 
@@ -387,6 +396,7 @@ class ScanResult {
       'exportFormat': exportFormat,
       'encryptionStatus': encryptionStatus,
       'watermarkApplied': watermarkApplied,
+      'ocrTextResult': ocrTextResult?.toJson(),
     };
   }
 
@@ -431,6 +441,48 @@ class ScanResult {
           json['bankChequeInfo'] as Map<String, dynamic>);
     }
 
+    OcrTextResult? ocrResult;
+    if (json['ocrTextResult'] != null && json['ocrTextResult'] is Map) {
+      ocrResult = OcrTextResult.fromJson(
+          json['ocrTextResult'] as Map<String, dynamic>);
+    }
+
+    // Deserialize roi rectangle
+    Rect? roi;
+    if (json['roi'] != null && json['roi'] is Map) {
+      final r = json['roi'] as Map<String, dynamic>;
+      roi = Rect.fromLTWH(
+        (r['left'] as num).toDouble(),
+        (r['top'] as num).toDouble(),
+        (r['width'] as num).toDouble(),
+        (r['height'] as num).toDouble(),
+      );
+    }
+
+    // Deserialize corner points
+    List<Offset>? corners;
+    if (json['corners'] != null && json['corners'] is List) {
+      corners = (json['corners'] as List)
+          .map((c) {
+            final m = c as Map<String, dynamic>;
+            return Offset(
+              (m['x'] as num).toDouble(),
+              (m['y'] as num).toDouble(),
+            );
+          })
+          .toList();
+    }
+
+    // Deserialize image size
+    Size? imageSize;
+    if (json['imageSize'] != null && json['imageSize'] is Map) {
+      final s = json['imageSize'] as Map<String, dynamic>;
+      imageSize = Size(
+        (s['width'] as num).toDouble(),
+        (s['height'] as num).toDouble(),
+      );
+    }
+
     return ScanResult(
       mode: mode,
       rawValue: json['rawValue'] as String? ?? '',
@@ -443,7 +495,10 @@ class ScanResult {
       imagePath: json['imagePath'] as String?,
       format: json['format'] as String?,
       documentCategory: json['documentCategory'] as String?,
+      roi: roi,
       isDuplicate: json['isDuplicate'] as bool? ?? false,
+      corners: corners,
+      imageSize: imageSize,
       enhancementsApplied: (json['enhancementsApplied'] as List?)
           ?.map((e) => e.toString())
           .toList(),
@@ -461,6 +516,7 @@ class ScanResult {
       exportFormat: json['exportFormat'] as String?,
       encryptionStatus: json['encryptionStatus'] as String?,
       watermarkApplied: json['watermarkApplied'] as bool? ?? false,
+      ocrTextResult: ocrResult,
     );
   }
 

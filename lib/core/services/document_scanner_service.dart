@@ -2,6 +2,27 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
+/// Document enhancement filter modes.
+enum DocumentFilterMode {
+  /// Original image without processing.
+  original,
+
+  /// Grayscale filter.
+  grayscale,
+
+  /// Pure high-contrast black & white binarization thresholding.
+  binarization,
+
+  /// Magic color contrast & saturation enhancement.
+  magicColor,
+
+  /// Shadow removal and background whitening.
+  shadowRemoval,
+
+  /// Automatic skew angle correction.
+  deskew,
+}
+
 /// Data structure representing detected document quad bounds.
 class DocumentCorners {
   final Offset topLeft;
@@ -26,6 +47,64 @@ class DocumentCorners {
     final minY = ys.reduce(math.min);
     final maxY = ys.reduce(math.max);
     return Rect.fromLTRB(minX, minY, maxX, maxY);
+  }
+
+  /// Calculates quadrilateral area using the Shoelace formula.
+  double get area {
+    final pts = toList();
+    double sum1 = 0;
+    double sum2 = 0;
+    for (int i = 0; i < pts.length; i++) {
+      final next = (i + 1) % pts.length;
+      sum1 += pts[i].dx * pts[next].dy;
+      sum2 += pts[i].dy * pts[next].dx;
+    }
+    return (sum1 - sum2).abs() / 2.0;
+  }
+
+  /// Calculates bounding box width-to-height aspect ratio.
+  double get aspectRatio {
+    final box = toBoundingBox();
+    return box.height == 0 ? 1.0 : box.width / box.height;
+  }
+
+  /// Checks if the four corner points form a convex polygon.
+  bool get isConvex {
+    final pts = toList();
+    bool? positive;
+    for (int i = 0; i < pts.length; i++) {
+      final p0 = pts[i];
+      final p1 = pts[(i + 1) % pts.length];
+      final p2 = pts[(i + 2) % pts.length];
+
+      final dx1 = p1.dx - p0.dx;
+      final dy1 = p1.dy - p0.dy;
+      final dx2 = p2.dx - p1.dx;
+      final dy2 = p2.dy - p1.dy;
+
+      final cross = dx1 * dy2 - dy1 * dx2;
+      if (cross == 0) continue;
+      final isPositive = cross > 0;
+      if (positive == null) {
+        positive = isPositive;
+      } else if (positive != isPositive) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Validates whether corners form a valid non-zero convex quadrilateral.
+  bool get isValidQuad => area > 100.0 && isConvex;
+
+  /// Returns scaled corners scaled by coordinate multipliers.
+  DocumentCorners scale(double scaleX, double scaleY) {
+    return DocumentCorners(
+      topLeft: Offset(topLeft.dx * scaleX, topLeft.dy * scaleY),
+      topRight: Offset(topRight.dx * scaleX, topRight.dy * scaleY),
+      bottomRight: Offset(bottomRight.dx * scaleX, bottomRight.dy * scaleY),
+      bottomLeft: Offset(bottomLeft.dx * scaleX, bottomLeft.dy * scaleY),
+    );
   }
 }
 
@@ -106,7 +185,13 @@ class DocumentScannerService {
     return result;
   }
 
-  /// Converts color bytes buffer to normalized grayscale.
+  /// Creates a defensive copy of a single-channel grayscale byte buffer.
+  ///
+  /// This function assumes [bytes] is already in single-channel grayscale format
+  /// (e.g., from camera NV21 Y-plane extraction). It returns a new buffer so
+  /// that downstream filter operations do not mutate the original input.
+  ///
+  /// For RGB-to-grayscale conversion, use a full image decoding pipeline instead.
   static Uint8List applyGrayscaleFilter(Uint8List bytes) {
     if (bytes.isEmpty) return bytes;
     final result = Uint8List(bytes.length);
@@ -247,6 +332,56 @@ class DocumentScannerService {
       }
     }
 
+    return result;
+  }
+
+  /// High-level filter dispatcher applying selected [DocumentFilterMode] to image bytes.
+  static Uint8List applyFilter(
+    Uint8List bytes,
+    DocumentFilterMode filterMode, {
+    int binarizationThreshold = 128,
+    int? width,
+    int? height,
+  }) {
+    switch (filterMode) {
+      case DocumentFilterMode.original:
+        return bytes;
+      case DocumentFilterMode.grayscale:
+        return applyGrayscaleFilter(bytes);
+      case DocumentFilterMode.binarization:
+        return applyBinarizationFilter(bytes, threshold: binarizationThreshold);
+      case DocumentFilterMode.magicColor:
+        return applyMagicColorFilter(bytes);
+      case DocumentFilterMode.shadowRemoval:
+        return applyShadowRemovalFilter(bytes);
+      case DocumentFilterMode.deskew:
+        if (width != null && height != null) {
+          return autoCorrectSkew(bytes, width: width, height: height);
+        }
+        return bytes;
+    }
+  }
+
+  /// Applies custom brightness and contrast adjustment to grayscale bytes.
+  ///
+  /// [brightness] ranges from -1.0 (darker) to +1.0 (brighter).
+  /// [contrast] ranges from 0.0 (no contrast) to 2.0+ (high contrast).
+  static Uint8List applyBrightnessContrastFilter(
+    Uint8List grayBytes, {
+    double brightness = 0.0,
+    double contrast = 1.0,
+  }) {
+    if (grayBytes.isEmpty) return grayBytes;
+    final result = Uint8List(grayBytes.length);
+    final brightnessShift = (brightness * 255).round();
+
+    for (int i = 0; i < grayBytes.length; i++) {
+      final val = grayBytes[i];
+      final adjusted = ((val - 128) * contrast + 128 + brightnessShift)
+          .round()
+          .clamp(0, 255);
+      result[i] = adjusted;
+    }
     return result;
   }
 }

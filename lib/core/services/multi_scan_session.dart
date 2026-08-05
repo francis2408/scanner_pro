@@ -26,6 +26,7 @@ enum SessionState {
 }
 
 /// Statistics snapshot for a multi-scan session.
+@immutable
 class SessionStats {
   /// Total number of items scanned in this session.
   final int totalScans;

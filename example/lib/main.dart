@@ -104,8 +104,8 @@ class _MainShowcaseDashboardState extends State<MainShowcaseDashboard> {
               child: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF00E5FF)),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'ScannerPro v2.2.0',
+            Text(
+              'ScannerPro v$scannerProVersion',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
