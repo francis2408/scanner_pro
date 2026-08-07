@@ -3,7 +3,7 @@ description: "Universal Flutter scanning SDK with 18 Vision AI modes, offline OC
 repository: https://github.com/francis2408/scanner_pro
 homepage: https://github.com/francis2408/scanner_pro
 
-version: 2.5.3
+version: 3.0.0
 
 environment:
   sdk: ^3.9.2

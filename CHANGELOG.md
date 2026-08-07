@@ -1,3 +1,22 @@
+# 3.0.0
+
+- **Phase 1 Core Engine Overhaul**:
+  - **Canny Edge Detector (`canny_edge_detector.dart`)**: 5-stage pure-Dart Canny edge detection (Gaussian blur, Sobel gradients, Non-Maximal Suppression, hysteresis tracking).
+  - **Contour Detector (`contour_detector.dart`)**: Moore-Neighbor boundary tracing, Douglas-Peucker polygon simplification, Graham Scan convex hull, and optimal quadrilateral fitting.
+  - **Perspective Transform Engine (`perspective_transform_engine.dart`)**: Direct Linear Transform (DLT) 8-parameter Homography matrix solver with bilinear interpolation and automatic aspect-ratio calculation.
+  - **Noise Reduction Engine (`noise_reduction_engine.dart`)**: Pure-Dart Gaussian, Median, edge-preserving Bilateral filtering, Morphological operations (open/close/dilate/erode), Gamma correction, and Unsharp mask.
+- **Engine Upgrades**:
+  - **Barcode Decoder Engine (`barcode_decoder_engine.dart`)**: Added full EAN-13 decoding with check digits, Code 128 Start A/B/C detection, QR finder pattern cross-checks, 7-line multi-pass scanning, 90° frame rotation support, exponential smoothing spatial tracking, and fallback decoder integration.
+  - **Document Detector Engine (`document_detector_engine.dart`)**: Canny + Contour quadrilateral fitting pipeline with Sobel gradient fallback, document coverage ratio, and glare detection.
+  - **Auto Zoom Controller (`auto_zoom_controller.dart`)**: Smooth ease-out zoom curves, velocity limiting, hysteresis band (±5%), settling detection, and module-size estimation.
+  - **Auto Capture State Machine (`auto_capture_state_machine.dart`)**: Multi-signal fusion scoring (40% stability, 30% blur, 20% coverage, 10% glare), adaptive quality feedback, and countdown timer.
+  - **Aadhaar Parser (`aadhaar_parser.dart`)**: Multi-candidate UID extraction with Verhoeff-guided OCR digit error correction (single-digit substitution), full name, address, VID, gender, and multi-format DOB/YOB extraction.
+- **Isolate Multithreading & Pipeline Diagnostics**:
+  - **Isolate Pool (`isolate_pool.dart`)**: Persistent background isolate pool with work-stealing scheduler, priority queues, and EMA latency tracking.
+  - **Isolate Frame Processor (`isolate_frame_processor.dart`)**: Tenengrad sharpness calculation, hot-pixel glare ratio evaluation, and processing pipeline metadata propagation.
+  - **Result Post Processor (`result_post_processor.dart`)**: Mode-specific OCR corrections (MRZ, VIN, License Plate) with selective bypass for pre-parsed domain models to prevent field corruption.
+  - **ScanResult & ScannerOptions**: Added v3.0 pipeline tracing fields (`processingPipeline`, `alternativeResults`, `detectorName`, `postProcessingCorrections`) and configuration parameters.
+
 # 2.5.3
 
 - **Updated ML Kit Dependency Constraints**: Expanded dependency bounds for `google_mlkit_barcode_scanning` (`>=0.13.0 <0.16.0`), `google_mlkit_face_detection` (`>=0.11.0 <0.15.0`), and `google_mlkit_text_recognition` (`>=0.14.0 <0.17.0`) to support the latest stable releases.

@@ -7,6 +7,8 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
+import '../core/engine/document_detector_engine.dart';
+import '../core/engine/barcode_decoder_engine.dart';
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_mode.dart';
 import '../core/parsers/aadhaar_parser.dart';
@@ -21,6 +23,7 @@ import '../core/parsers/pan_card_parser.dart';
 import '../core/parsers/receipt_parser.dart';
 import '../core/parsers/vin_parser.dart';
 import '../core/plugins/scanner_plugin.dart';
+import '../core/processors/result_post_processor.dart';
 import '../core/services/document_classifier.dart';
 import '../core/services/document_scanner_service.dart';
 import 'external_lookup_service.dart';
@@ -42,6 +45,9 @@ class UniversalScanEngine {
       enableTracking: true,
     ),
   );
+
+  /// v3.0: Standalone barcode fallback decoder (ZXing-style).
+  final BarcodeDecoderEngine _barcodeFallback = BarcodeDecoderEngine();
 
   /// Whether the scan engine is initialized.
   bool get isInitialized => _isInitialized;
@@ -207,12 +213,43 @@ class UniversalScanEngine {
       '⏱️ [UniversalScanEngine] Scan completed in ${duration.inMilliseconds} ms | Mode: ${mode.name} | Category: ${classification.category.name} | Valid: ${rawResult.isValid}',
     );
 
+    // v3.0: Apply result post-processing ONLY for barcode/QR modes
+    // For OCR-parsed modes (aadhaar, passport, pan, etc.) the parser has already
+    // processed and validated the text — running post-processing on the parser's
+    // output would destroy the structured fields (e.g. strip names, dates).
+    String correctedRawValue = rawResult.rawValue;
+    List<String> corrections = [];
+    double confidenceAdjustment = 0.0;
+
+    final isBarcodeLikeMode = mode == ScanMode.barcode ||
+        mode == ScanMode.qr ||
+        mode == ScanMode.multiCode ||
+        mode == ScanMode.pdf417;
+
+    if (isBarcodeLikeMode) {
+      final postProcessed =
+          ResultPostProcessor.process(rawResult.rawValue, mode);
+      correctedRawValue = postProcessed.text;
+      corrections = postProcessed.corrections;
+      confidenceAdjustment = postProcessed.confidenceAdjustment;
+    }
+
+    // v3.0: Determine detector name for tracing
+    String detectorName = 'mlkit';
+    if (rawResult.detectorName != null) {
+      detectorName = rawResult.detectorName!;
+    }
+
+    // Adjust confidence based on post-processing corrections
+    final adjustedConfidence =
+        (rawResult.confidence + confidenceAdjustment).clamp(0.0, 1.0);
+
     return ScanResult(
       mode: rawResult.mode,
-      rawValue: rawResult.rawValue,
+      rawValue: correctedRawValue,
       fields: rawResult.fields,
       isValid: rawResult.isValid,
-      confidence: rawResult.confidence,
+      confidence: adjustedConfidence,
       timestamp: rawResult.timestamp,
       imagePath: rawResult.imagePath,
       rawBytes: rawResult.rawBytes,
@@ -230,6 +267,9 @@ class UniversalScanEngine {
       },
       multiResults: rawResult.multiResults,
       detectedBarcodes: rawResult.detectedBarcodes,
+      detectorName: detectorName,
+      postProcessingCorrections: corrections,
+      processingPipeline: rawResult.processingPipeline,
     );
   }
 
@@ -241,7 +281,18 @@ class UniversalScanEngine {
     final height = inputImage.metadata?.size.height ?? 480.0;
     final imgSize = Size(width, height);
 
-    final corners = DocumentScannerService.detectDocumentEdges(imgSize);
+    DocumentCorners corners;
+    final bytes = inputImage.bytes;
+    if (bytes != null && bytes.isNotEmpty) {
+      corners = DocumentDetectorEngine.detectQuadrilateral(
+        bytes,
+        width.toInt(),
+        height.toInt(),
+      );
+    } else {
+      corners = DocumentScannerService.detectDocumentEdges(imgSize);
+    }
+
     final bbox = corners.toBoundingBox();
     final transform = DocumentScannerService.computePerspectiveTransform(
       corners,
@@ -328,12 +379,42 @@ class UniversalScanEngine {
             displayValue: b.displayValue ?? bVal,
           );
         }).toList();
+
+        debugPrint(
+          '📊 [UniversalScanEngine] ML Kit detected ${barcodes.length} barcode(s) | Format: $formatStr | Primary: ${rawValue!.substring(0, rawValue.length.clamp(0, 80))}',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ ML Kit BarcodeScanner exception: $e');
     }
 
-    // 2. Fallback to image file extraction if imagePath/filePath is provided
+    // 2. v3.0: Barcode fallback decoder (ZXing-style) if ML Kit found nothing
+    if ((rawValue == null || rawValue.isEmpty) && inputImage.bytes != null) {
+      try {
+        final imgBytes = inputImage.bytes!;
+        final imgW = inputImage.metadata?.size.width.toInt() ?? 640;
+        final imgH = inputImage.metadata?.size.height.toInt() ?? 480;
+
+        final fallbackResults = _barcodeFallback.decodeGrayscaleFrame(
+          imgBytes,
+          imgW,
+          imgH,
+        );
+        if (fallbackResults.isNotEmpty) {
+          final primary = fallbackResults.first;
+          rawValue = primary.rawValue;
+          formatStr = primary.format;
+          detectedBarcodesList = fallbackResults;
+          debugPrint(
+            '📊 [BarcodeDecoderEngine] Fallback decoded: ${primary.format} - ${primary.rawValue}',
+          );
+        }
+      } catch (e) {
+        debugPrint('⚠️ Barcode fallback decoder exception: $e');
+      }
+    }
+
+    // 3. Fallback to image file extraction if imagePath/filePath is provided
     if (rawValue == null || rawValue.isEmpty) {
       rawValue = _extractTextOrPayloadFromInputImage(
         inputImage,
@@ -707,6 +788,11 @@ class UniversalScanEngine {
         'No legible text detected. Ensure good illumination.',
       );
     }
+
+    // v3.0: Debug log raw OCR text for pipeline tracing
+    debugPrint(
+      '📝 [UniversalScanEngine] Raw OCR text for ${mode.name} (${rawText.length} chars):\n$rawText',
+    );
 
     ScanResult result;
 

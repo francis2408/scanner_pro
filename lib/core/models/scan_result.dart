@@ -209,6 +209,21 @@ class ScanResult {
   /// Full structured OCR text result (blocks, lines, elements).
   final OcrTextResult? ocrTextResult;
 
+  // --- v3.0 Pipeline Tracing Fields ---
+
+  /// Ordered list of processing steps applied during this scan.
+  /// e.g. ['gamma_correction', 'bilateral_denoise', 'sauvola_binarization']
+  final List<String> processingPipeline;
+
+  /// Alternative lower-confidence results from other detectors or parse attempts.
+  final List<ScanResult>? alternativeResults;
+
+  /// Name of the detector that produced this result.
+  final String? detectorName;
+
+  /// OCR post-processing corrections that were applied.
+  final List<String> postProcessingCorrections;
+
   /// Creates a new [ScanResult] instance.
   ScanResult({
     required this.mode,
@@ -241,12 +256,18 @@ class ScanResult {
     this.encryptionStatus,
     this.watermarkApplied = false,
     this.ocrTextResult,
+    List<String>? processingPipeline,
+    this.alternativeResults,
+    this.detectorName,
+    List<String>? postProcessingCorrections,
   })  : fields = fields ?? const {},
         timestamp = timestamp ?? DateTime.now(),
         enhancementsApplied = enhancementsApplied ?? const [],
         metadata = metadata ?? {},
         verifications = verifications ?? const {},
-        preprocessingInfo = preprocessingInfo ?? const {};
+        preprocessingInfo = preprocessingInfo ?? const {},
+        processingPipeline = processingPipeline ?? const [],
+        postProcessingCorrections = postProcessingCorrections ?? const [];
 
   /// Convenience getter returning list of [BarcodeResult] detected in frame.
   List<BarcodeResult> get barcodes {
@@ -312,6 +333,10 @@ class ScanResult {
     String? encryptionStatus,
     bool? watermarkApplied,
     OcrTextResult? ocrTextResult,
+    List<String>? processingPipeline,
+    List<ScanResult>? alternativeResults,
+    String? detectorName,
+    List<String>? postProcessingCorrections,
   }) {
     return ScanResult(
       mode: mode ?? this.mode,
@@ -344,6 +369,11 @@ class ScanResult {
       encryptionStatus: encryptionStatus ?? this.encryptionStatus,
       watermarkApplied: watermarkApplied ?? this.watermarkApplied,
       ocrTextResult: ocrTextResult ?? this.ocrTextResult,
+      processingPipeline: processingPipeline ?? this.processingPipeline,
+      alternativeResults: alternativeResults ?? this.alternativeResults,
+      detectorName: detectorName ?? this.detectorName,
+      postProcessingCorrections:
+          postProcessingCorrections ?? this.postProcessingCorrections,
     );
   }
 
@@ -397,6 +427,9 @@ class ScanResult {
       'encryptionStatus': encryptionStatus,
       'watermarkApplied': watermarkApplied,
       'ocrTextResult': ocrTextResult?.toJson(),
+      'processingPipeline': processingPipeline,
+      'detectorName': detectorName,
+      'postProcessingCorrections': postProcessingCorrections,
     };
   }
 
@@ -517,6 +550,14 @@ class ScanResult {
       encryptionStatus: json['encryptionStatus'] as String?,
       watermarkApplied: json['watermarkApplied'] as bool? ?? false,
       ocrTextResult: ocrResult,
+      processingPipeline: (json['processingPipeline'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
+      detectorName: json['detectorName'] as String?,
+      postProcessingCorrections:
+          (json['postProcessingCorrections'] as List?)
+              ?.map((e) => e.toString())
+              .toList(),
     );
   }
 

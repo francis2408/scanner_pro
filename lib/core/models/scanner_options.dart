@@ -246,6 +246,44 @@ class ScannerOptions {
   /// Default export format for scan results (pdf, jpg, png).
   final String exportFormat;
 
+  // --- v3.0 Pipeline Options ---
+
+  /// Number of persistent isolates in the processing pool (1-4).
+  final int isolatePoolSize;
+
+  /// Maximum pending frames in the processing queue before dropping.
+  final int frameQueueDepth;
+
+  /// Enable multi-pass OCR with different preprocessing per pass.
+  final bool enableMultiPassOcr;
+
+  /// Number of OCR passes to run per frame (2-4).
+  final int multiPassOcrCount;
+
+  /// Enable standalone barcode fallback decoder (ZXing-style) when ML Kit fails.
+  final bool enableBarcodeFallbackDecoder;
+
+  /// Timeout in ms before barcode fallback decoder gives up.
+  final int barcodeFallbackTimeoutMs;
+
+  /// Enable specular glare/reflection detection.
+  final bool enableGlareDetection;
+
+  /// Maximum fraction of hot pixels before glare warning (0.0-1.0).
+  final double glareThreshold;
+
+  /// Enable document coverage ratio checking for auto-capture.
+  final bool enableCoverageCheck;
+
+  /// Minimum quad area / frame area ratio for valid coverage.
+  final double coverageMinRatio;
+
+  /// Enable adaptive preprocessing (auto-selects best pipeline per frame).
+  final bool enableAdaptivePreprocessing;
+
+  /// Enable Tenengrad blur detection (more robust than Laplacian).
+  final bool enableTenengradBlur;
+
   /// Explicit pixel area ROI scan bounds (alias for [rectScanArea]).
   Rect? get scanArea => rectScanArea;
 
@@ -307,6 +345,19 @@ class ScannerOptions {
     this.watermarkText,
     this.imageCompressionQuality = 0.85,
     this.exportFormat = 'pdf',
+    // v3.0 options
+    this.isolatePoolSize = 2,
+    this.frameQueueDepth = 3,
+    this.enableMultiPassOcr = true,
+    this.multiPassOcrCount = 3,
+    this.enableBarcodeFallbackDecoder = true,
+    this.barcodeFallbackTimeoutMs = 200,
+    this.enableGlareDetection = true,
+    this.glareThreshold = 0.05,
+    this.enableCoverageCheck = true,
+    this.coverageMinRatio = 0.15,
+    this.enableAdaptivePreprocessing = true,
+    this.enableTenengradBlur = true,
   });
 
   /// Factory constructor supporting explicit [scanArea], [allowDuplicates], and [duplicateDelay] parameters.

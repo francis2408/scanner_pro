@@ -79,7 +79,9 @@ class AadhaarParser {
         rawData.contains('}z~{') ||
         rawData.contains('vwxwvtvvw') ||
         (rawData.length > 200 && RegExp(r'^\d+$').hasMatch(rawData)) ||
-        (rawData.length > 200 && rawData.contains('~') && rawData.contains('{'))) {
+        (rawData.length > 200 &&
+            rawData.contains('~') &&
+            rawData.contains('{'))) {
       return true;
     }
     final uidMatch = _uidRegex.firstMatch(rawData);
@@ -110,27 +112,115 @@ class AadhaarParser {
       if (secureResult != null) return secureResult;
     }
 
-    final uidMatch = _uidRegex.firstMatch(rawData);
+    // Enhanced v3.0: Multi-candidate UID extraction with OCR error correction
+    final allDigitSequences = _extractAllDigitSequences(rawData);
+    final lines = rawData
+        .split(_lineSplitRegex)
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
 
+    // Strategy 1: Direct regex match for formatted Aadhaar number
+    String? bestUid;
+    bool isVerhoeffValid = false;
+
+    final uidMatch = _uidRegex.firstMatch(rawData);
     if (uidMatch != null) {
-      final rawUid = uidMatch.group(0)!;
-      final cleanUid = rawUid.replaceAll(' ', '');
-      final isVerhoeffValid = validateAadhaarVerhoeff(cleanUid);
+      final rawUid = uidMatch.group(0)!.replaceAll(' ', '');
+      if (validateAadhaarVerhoeff(rawUid)) {
+        bestUid = rawUid;
+        isVerhoeffValid = true;
+      } else {
+        // Try OCR digit correction on this candidate
+        final corrected = _tryOcrCorrection(rawUid);
+        if (corrected != null) {
+          bestUid = corrected;
+          isVerhoeffValid = true;
+        } else {
+          bestUid = rawUid; // Use as-is even if Verhoeff fails
+        }
+      }
+    }
+
+    // Strategy 2: Find any 12-digit sequence that passes Verhoeff
+    if (!isVerhoeffValid) {
+      for (final seq in allDigitSequences) {
+        if (seq.length >= 12) {
+          // Try each 12-digit window
+          for (int start = 0; start <= seq.length - 12; start++) {
+            final candidate = seq.substring(start, start + 12);
+            if (candidate.startsWith(RegExp(r'[2-9]'))) {
+              if (validateAadhaarVerhoeff(candidate)) {
+                bestUid = candidate;
+                isVerhoeffValid = true;
+                break;
+              }
+              // Try OCR correction
+              final corrected = _tryOcrCorrection(candidate);
+              if (corrected != null) {
+                bestUid = corrected;
+                isVerhoeffValid = true;
+                break;
+              }
+            }
+          }
+          if (isVerhoeffValid) break;
+        }
+      }
+    }
+
+    // Strategy 3: Concatenate nearby 4-digit groups (XXXX XXXX XXXX format)
+    if (!isVerhoeffValid) {
+      final fourDigitGroups = RegExp(
+        r'\b\d{4}\b',
+      ).allMatches(rawData).map((m) => m.group(0)!).toList();
+      if (fourDigitGroups.length >= 3) {
+        for (int i = 0; i <= fourDigitGroups.length - 3; i++) {
+          final candidate =
+              fourDigitGroups[i] +
+              fourDigitGroups[i + 1] +
+              fourDigitGroups[i + 2];
+          if (candidate.startsWith(RegExp(r'[2-9]')) &&
+              candidate.length == 12) {
+            if (validateAadhaarVerhoeff(candidate)) {
+              bestUid = candidate;
+              isVerhoeffValid = true;
+              break;
+            }
+            final corrected = _tryOcrCorrection(candidate);
+            if (corrected != null) {
+              bestUid = corrected;
+              isVerhoeffValid = true;
+              break;
+            }
+            bestUid ??= candidate;
+          }
+        }
+      }
+    }
+
+    if (bestUid != null && bestUid.length >= 12) {
+      final cleanUid = bestUid.substring(0, 12);
+      final formattedUid =
+          '${cleanUid.substring(0, 4)} ${cleanUid.substring(4, 8)} ${cleanUid.substring(8, 12)}';
 
       final Map<String, String> fields = {
         'Card Type': 'Aadhaar Card (India)',
-        'Aadhaar Number':
-            '${cleanUid.substring(0, 4)} ${cleanUid.substring(4, 8)} ${cleanUid.substring(8, 12)}',
+        'Aadhaar Number': formattedUid,
         'Verhoeff Checksum': isVerhoeffValid ? 'Valid ✓' : 'Invalid ✗',
         'Verification Status': isVerhoeffValid
             ? 'UIDAI Verhoeff D10 Validated ✓'
             : 'Checksum Mismatch ✗',
       };
 
-      final lines = rawData
-          .split(_lineSplitRegex)
-          .map((l) => l.trim())
-          .toList();
+      // Extract Name — look for lines with mostly uppercase alphabets
+      // (typically the cardholder name line on Aadhaar)
+      final nameCandidate = _extractName(lines);
+      if (nameCandidate != null) {
+        fields['Full Name'] = nameCandidate;
+      }
+
+      // Extract Date of Birth
       for (final line in lines) {
         if (_dobHeaderRegex.hasMatch(line)) {
           final dobMatch = _dobMatchRegex.firstMatch(line);
@@ -150,20 +240,81 @@ class AadhaarParser {
               fields['Approximate Age'] = '${DateTime.now().year - yr} years';
             }
           }
-        } else if (_genderRegex.hasMatch(line)) {
-          fields['Gender'] = line;
         }
       }
 
+      // Try extracting DOB from raw text if not found via headers
+      if (!fields.containsKey('Date of Birth') &&
+          !fields.containsKey('Year of Birth')) {
+        final dobAnywhere = RegExp(
+          r'\b\d{2}[/\-.]\d{2}[/\-.]\d{4}\b',
+        ).firstMatch(rawData);
+        if (dobAnywhere != null) {
+          fields['Date of Birth'] = dobAnywhere.group(0)!;
+          final parts = dobAnywhere.group(0)!.split(RegExp(r'[/\-.]'));
+          if (parts.length == 3) {
+            final yr = int.tryParse(parts[2]);
+            if (yr != null && yr > 1900 && yr < DateTime.now().year) {
+              fields['Calculated Age'] = '${DateTime.now().year - yr} years';
+            }
+          }
+        }
+      }
+
+      // Extract Gender
+      for (final line in lines) {
+        if (_genderRegex.hasMatch(line)) {
+          final match = _genderRegex.firstMatch(line);
+          if (match != null) {
+            fields['Gender'] = match.group(0)!;
+          }
+          break;
+        }
+      }
+      // Also check for single M/F near gender keywords
+      if (!fields.containsKey('Gender')) {
+        final genderShort = RegExp(
+          r'(?:Gender|Sex)\s*[:\-]?\s*([MF])\b',
+          caseSensitive: false,
+        ).firstMatch(rawData);
+        if (genderShort != null) {
+          final g = genderShort.group(1)!.toUpperCase();
+          fields['Gender'] = g == 'M' ? 'Male' : 'Female';
+        }
+      }
+
+      // Extract Pincode
       final pincodeMatch = _pincodeRegex.firstMatch(rawData);
       if (pincodeMatch != null) {
         fields['Pincode'] = pincodeMatch.group(0)!;
+      }
+
+      // Extract VID (Virtual ID) — 16-digit number
+      final vidMatch = RegExp(
+        r'\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b',
+      ).firstMatch(rawData);
+      if (vidMatch != null) {
+        final vidClean = vidMatch.group(0)!.replaceAll(' ', '');
+        if (vidClean.length == 16 && vidClean != cleanUid) {
+          fields['VID'] =
+              '${vidClean.substring(0, 4)} ${vidClean.substring(4, 8)} ${vidClean.substring(8, 12)} ${vidClean.substring(12, 16)}';
+        }
+      }
+
+      // Extract Address lines (lines below gender/DOB, above Aadhaar number)
+      final addressLines = _extractAddressLines(lines, cleanUid);
+      if (addressLines.isNotEmpty) {
+        fields['Address'] = addressLines.join(', ');
       }
 
       final verifications = {
         'verhoeffChecksum': isVerhoeffValid,
         'uidSyntaxValid': true,
         'pincodeValid': fields.containsKey('Pincode'),
+        'nameExtracted': fields.containsKey('Full Name'),
+        'dobExtracted':
+            fields.containsKey('Date of Birth') ||
+            fields.containsKey('Year of Birth'),
       };
 
       return ScanResult(
@@ -181,9 +332,132 @@ class AadhaarParser {
       rawValue: rawData,
       isValid: false,
       confidence: 0.3,
-      fields: {'Card Type': 'Aadhaar (Unparsed)', 'Raw Input': rawData},
+      fields: {
+        'Card Type': 'Aadhaar (Unparsed)',
+        'Raw Input': rawData,
+        'Detection Note':
+            'No valid 12-digit Aadhaar number found. Ensure card is well-lit and in focus.',
+      },
       verifications: {'verhoeffChecksum': false, 'uidSyntaxValid': false},
     );
+  }
+
+  /// Extracts all contiguous digit sequences from raw text.
+  static List<String> _extractAllDigitSequences(String text) {
+    return RegExp(r'\d+').allMatches(text).map((m) => m.group(0)!).toList();
+  }
+
+  /// Attempts OCR error correction on a 12-digit candidate.
+  ///
+  /// Tries single-digit substitutions for common OCR confusions
+  /// and validates with Verhoeff after each attempt.
+  static String? _tryOcrCorrection(String candidate) {
+    if (candidate.length != 12) return null;
+
+    // Common OCR digit confusions: 6↔8, 5↔6, 0↔8, 3↔8, 1↔7, 9↔4
+    const confusions = {
+      '6': ['8', '0', '5'],
+      '8': ['6', '3', '0'],
+      '5': ['6', '3'],
+      '0': ['8', '6'],
+      '3': ['8', '5'],
+      '1': ['7', '4'],
+      '7': ['1'],
+      '9': ['4'],
+      '4': ['9', '1'],
+    };
+
+    // Try single-digit corrections first (most likely)
+    for (int pos = 0; pos < 12; pos++) {
+      final digit = candidate[pos];
+      final alternatives = confusions[digit];
+      if (alternatives == null) continue;
+
+      for (final alt in alternatives) {
+        final corrected =
+            candidate.substring(0, pos) + alt + candidate.substring(pos + 1);
+        if (validateAadhaarVerhoeff(corrected)) {
+          return corrected;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Extracts the cardholder name from OCR lines.
+  ///
+  /// Heuristic: look for lines that are mostly uppercase Latin letters,
+  /// not matching known keywords (Government, Aadhaar, etc.), and appear
+  /// before the Aadhaar number.
+  static String? _extractName(List<String> lines) {
+    final ignorePatterns = RegExp(
+      r'GOVERNMENT|AADHAAR|UIDAI|UNIQUE|IDENTIFICATION|INDIA|ENROL|DATE|BIRTH|DOB|YEAR|YOB|MALE|FEMALE|GENDER|VID|ADDRESS|HELP',
+      caseSensitive: false,
+    );
+
+    for (final line in lines) {
+      // Skip lines that are mostly digits
+      final digitCount = line
+          .split('')
+          .where((c) => RegExp(r'\d').hasMatch(c))
+          .length;
+      if (digitCount > line.length * 0.5) continue;
+
+      // Skip known header/keyword lines
+      if (ignorePatterns.hasMatch(line)) continue;
+
+      // Skip very short lines
+      if (line.length < 3) continue;
+
+      // Check if line is mostly alphabetic characters
+      final alphaCount = line
+          .split('')
+          .where((c) => RegExp(r'[a-zA-Z]').hasMatch(c))
+          .length;
+      if (alphaCount > line.length * 0.6 && line.length >= 3) {
+        return line.trim();
+      }
+    }
+    return null;
+  }
+
+  /// Extracts address lines from OCR output.
+  ///
+  /// Looks for lines between the gender/DOB and the Aadhaar number
+  /// that contain address-like content.
+  static List<String> _extractAddressLines(
+    List<String> lines,
+    String aadhaarNumber,
+  ) {
+    final result = <String>[];
+    bool foundGenderOrDob = false;
+    final uidDigits = aadhaarNumber.replaceAll(' ', '');
+
+    for (final line in lines) {
+      // Start collecting after gender/DOB line
+      if (_genderRegex.hasMatch(line) ||
+          _dobHeaderRegex.hasMatch(line) ||
+          _dobMatchRegex.hasMatch(line)) {
+        foundGenderOrDob = true;
+        continue;
+      }
+
+      // Stop at Aadhaar number line
+      if (line.replaceAll(' ', '').contains(uidDigits)) break;
+
+      if (foundGenderOrDob && line.length > 3) {
+        // Skip lines that look like headers
+        if (line.toUpperCase().contains('AADHAAR') ||
+            line.toUpperCase().contains('UIDAI') ||
+            line.toUpperCase().contains('GOVERNMENT')) {
+          continue;
+        }
+        result.add(line);
+      }
+    }
+
+    return result;
   }
 
   static ScanResult _parseXmlQr(String xmlStr) {

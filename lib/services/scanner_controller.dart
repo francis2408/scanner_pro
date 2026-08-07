@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/engine/auto_capture_state_machine.dart';
+import '../core/engine/auto_zoom_controller.dart';
+import '../core/engine/barcode_decoder_engine.dart';
 import '../core/models/camera_facing.dart';
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_mode.dart';
@@ -96,6 +99,11 @@ class ScannerController extends ChangeNotifier with WidgetsBindingObserver {
   ScannerFpsState get fpsState => _fpsState;
   final Map<String, ScanResult> _detectionCache = {};
   int _consecutiveEmptyFrameCount = 0;
+
+  // Auto Zoom, Auto Capture & Spatial Tracking Engines
+  final AutoZoomController autoZoomController = AutoZoomController();
+  final AutoCaptureStateMachine autoCaptureMachine = AutoCaptureStateMachine();
+  final BarcodeDecoderEngine barcodeTracker = BarcodeDecoderEngine();
 
   // Zoom and Focus properties
   double _currentZoomLevel = 1.0;

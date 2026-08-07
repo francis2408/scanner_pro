@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import '../core/engine/image_preprocessing_engine.dart';
+import '../core/engine/document_detector_engine.dart';
 import '../core/models/scan_result.dart';
 import '../core/models/scanner_options.dart';
 
@@ -25,7 +27,19 @@ class IsolateFrameTaskData {
     this.enableEnhancement = true,
     this.enableBlurDetection = true,
     this.previousFrameHash,
+    this.enableTenengradBlur = true,
+    this.enableGlareDetection = true,
+    this.enableAdaptivePreprocessing = false,
   });
+
+  /// v3.0: Enable Tenengrad blur detection (more robust than Laplacian).
+  final bool enableTenengradBlur;
+
+  /// v3.0: Enable glare detection via hot-pixel ratio.
+  final bool enableGlareDetection;
+
+  /// v3.0: Enable adaptive preprocessing pipeline.
+  final bool enableAdaptivePreprocessing;
 }
 
 /// Structured response output returned from isolate frame processing.
@@ -60,7 +74,19 @@ class IsolateFrameResult {
     this.contrastScore = 1.0,
     this.enhancementsApplied = const [],
     required this.qualityScore,
+    this.tenengradScore = 0.0,
+    this.glareRatio = 0.0,
+    this.processingPipeline = const [],
   });
+
+  /// v3.0: Tenengrad sharpness score (higher = sharper).
+  final double tenengradScore;
+
+  /// v3.0: Fraction of hot/glare pixels (0.0–1.0).
+  final double glareRatio;
+
+  /// v3.0: Ordered list of processing steps applied.
+  final List<String> processingPipeline;
 }
 
 /// Multithreaded background isolate worker for processing camera image frames,
@@ -131,7 +157,7 @@ class IsolateFrameProcessor {
       final cropH = (window.height * h).toInt().clamp(1, h - cropY);
 
       final croppedSize = cropW * cropH;
-      final croppedBytes = Uint8List(croppedSize);
+      final croppedBytes = getPooledBuffer(croppedSize);
 
       int destIdx = 0;
       for (int y = 0; y < cropH; y++) {
@@ -148,7 +174,7 @@ class IsolateFrameProcessor {
         destIdx += copyLength;
       }
 
-      workingBytes = croppedBytes;
+      workingBytes = Uint8List.fromList(croppedBytes.sublist(0, croppedSize));
       currentW = cropW;
       currentH = cropH;
       enhancements.add('ROI Crop (${currentW}x$currentH)');
@@ -252,6 +278,34 @@ class IsolateFrameProcessor {
       isHighQuality: isHighQuality,
     );
 
+    // v3.0: Tenengrad blur detection (more robust than Laplacian)
+    double tenengradScore = 0.0;
+    if (task.enableTenengradBlur && workingBytes.isNotEmpty && currentW > 10 && currentH > 10) {
+      tenengradScore = ImagePreprocessingEngine.computeTenengradScore(
+        workingBytes,
+        currentW,
+        currentH,
+      );
+      // Tenengrad can also contribute to blur detection
+      if (tenengradScore < 500.0 && !isBlurry) {
+        isBlurry = true;
+        enhancements.add('Tenengrad blur detected');
+      }
+    }
+
+    // v3.0: Glare detection
+    double glareRatio = 0.0;
+    if (task.enableGlareDetection && workingBytes.isNotEmpty) {
+      glareRatio = DocumentDetectorEngine.detectGlare(
+        workingBytes,
+        currentW,
+        currentH,
+      );
+      if (glareRatio > 0.03) {
+        enhancements.add('Glare detected (${(glareRatio * 100).toStringAsFixed(1)}%)');
+      }
+    }
+
     return IsolateFrameResult(
       processedBytes: workingBytes,
       averageLuminosity: luminosity,
@@ -267,6 +321,9 @@ class IsolateFrameProcessor {
       contrastScore: contrastScore,
       enhancementsApplied: enhancements,
       qualityScore: qualityScore,
+      tenengradScore: tenengradScore,
+      glareRatio: glareRatio,
+      processingPipeline: enhancements,
     );
   }
 

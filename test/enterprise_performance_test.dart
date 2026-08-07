@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:scannerpro/scannerpro.dart';
 
 class MockTestPlugin extends ScannerPlugin {
@@ -185,8 +186,10 @@ THANK YOU FOR SHOPPING
       expect(result.fields['Receipt Date'], equals('2026-08-01'));
     });
 
-    test('8. Business Card OCR Parser extracts contact name, email and phone', () {
-      const cardText = '''
+    test(
+      '8. Business Card OCR Parser extracts contact name, email and phone',
+      () {
+        const cardText = '''
 Francis Xavier
 Senior Systems Architect
 TechCorp Global Ltd
@@ -195,15 +198,18 @@ Tel: +1-555-0199
 Website: www.techcorp.io
 ''';
 
-      final result = BusinessCardParser.parse(cardText);
-      expect(result.isValid, isTrue);
-      expect(result.fields['Contact Name'], equals('Francis Xavier'));
-      expect(result.fields['Email Address'], equals('francis@techcorp.io'));
-      expect(result.fields['Phone Number'], equals('+1-555-0199'));
-    });
+        final result = BusinessCardParser.parse(cardText);
+        expect(result.isValid, isTrue);
+        expect(result.fields['Contact Name'], equals('Francis Xavier'));
+        expect(result.fields['Email Address'], equals('francis@techcorp.io'));
+        expect(result.fields['Phone Number'], equals('+1-555-0199'));
+      },
+    );
 
     test('9. DocumentScannerService & PdfExportUtil PDF exporter', () {
-      final corners = DocumentScannerService.detectDocumentEdges(const Size(800, 600));
+      final corners = DocumentScannerService.detectDocumentEdges(
+        const Size(800, 600),
+      );
       expect(corners.topLeft.dx, greaterThan(0.0));
       expect(corners.bottomRight.dx, lessThan(800.0));
 
@@ -219,12 +225,18 @@ Website: www.techcorp.io
       );
 
       expect(pdfBytes.isNotEmpty, isTrue);
-      expect(String.fromCharCodes(pdfBytes.sublist(0, 8)), contains('%PDF-1.4'));
+      expect(
+        String.fromCharCodes(pdfBytes.sublist(0, 8)),
+        contains('%PDF-1.4'),
+      );
     });
 
     test('10. Telemetry ScannerStats and Scan History', () async {
       final controller = ScannerController(
-        options: const ScannerOptions(enableScanHistory: true, maxHistorySize: 10),
+        options: const ScannerOptions(
+          enableScanHistory: true,
+          maxHistorySize: 10,
+        ),
       );
 
       expect(controller.scanHistory.isEmpty, isTrue);
